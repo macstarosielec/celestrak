@@ -10,3 +10,6 @@ pubspec.lock
 
 # OS / editor
 .DS_Store
+.idea/
+*.iml
+.vscode/
