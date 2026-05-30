@@ -1,0 +1,12 @@
+# Dart / pub
+.dart_tool/
+.packages
+build/
+coverage/
+doc/api/
+
+# A library should not commit its lockfile.
+pubspec.lock
+
+# OS / editor
+.DS_Store
