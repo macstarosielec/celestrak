@@ -1,4 +1,5 @@
-# Lint ruleset per ADR-2: Very Good Analysis + strict language modes.
+# Lints: Very Good Analysis + strict language modes.
+# Rationale: doc/adr/0002-lint-ruleset.md
 include: package:very_good_analysis/analysis_options.yaml
 
 analyzer:

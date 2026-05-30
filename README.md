@@ -4,8 +4,8 @@ A **pure-Dart** client for fetching, parsing, and caching satellite **TLE** and
 **OMM** orbital data from [CelesTrak](https://celestrak.org) and Space-Track.
 No Flutter dependency — usable on the Dart VM, servers, and Flutter alike.
 
-> **Status: pre-release scaffold (P0).** The public API is not yet implemented.
-> See the implementation plan for the phased roadmap (P0 → P8).
+> **Status: pre-release.** This is an early scaffold — the public API is not yet
+> implemented. Watch the repository for the first usable release.
 
 ## Why
 

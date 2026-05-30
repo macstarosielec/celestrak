@@ -1,5 +1,5 @@
-// Placeholder smoke test for the P0 scaffold. Replaced by real model/parser
-// tests in P1 (see test/fixtures and the implementation plan).
+// Placeholder smoke test that keeps the test runner green on the empty
+// scaffold. Replaced by real model and parser tests as the API lands.
 import 'package:test/test.dart';
 
 void main() {
