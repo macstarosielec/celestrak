@@ -9,3 +9,7 @@ analyzer:
     strict-raw-types: true
   exclude:
     - test/fixtures/**
+
+linter:
+  rules:
+    avoid_redundant_argument_values: false
