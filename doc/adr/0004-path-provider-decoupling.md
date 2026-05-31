@@ -21,7 +21,8 @@ clean dependency report and a pure-Dart core.
 ## Consequences
 
 - **+** Server / VM / AOT use is clean; no Flutter-adjacent dependency.
-- **+** Cleanest possible dependency report on pub.dev.
+- **+** Cleanest possible dependency graph — nothing Flutter-adjacent is pulled
+  in for non-Flutter consumers.
 - **−** Flutter users write one extra line to obtain a directory — documented in
   the README and `example/`.
 

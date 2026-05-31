@@ -5,8 +5,9 @@ Status: Accepted
 ## Context
 
 The package needs sound null safety, sealed classes for the exception hierarchy,
-and `Isolate.run` availability. pub.dev rewards a current, reasonable lower
-bound.
+and `Isolate.run` availability. The lower bound should be current and reasonable
+— recent enough for these features, old enough not to exclude active SDKs
+needlessly.
 
 ## Decision
 

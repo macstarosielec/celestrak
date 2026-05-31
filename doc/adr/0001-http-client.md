@@ -5,9 +5,9 @@ Status: Accepted
 ## Context
 
 The network layer needs request timeouts and bounded retry. The dependency
-footprint matters: a smaller transitive tree scores better on pub.dev and keeps
-the package's "minimal dependencies" promise. The realistic choice was
-`package:http` vs `package:dio`.
+footprint matters: a smaller transitive tree means fewer version constraints
+that could conflict for consumers, and keeps the package's "minimal
+dependencies" promise. The realistic choice was `package:http` vs `package:dio`.
 
 ## Decision
 
@@ -22,8 +22,8 @@ The inner `http.Client` is injectable, so tests pass a `MockClient`.
 
 ## Consequences
 
-- **+** Lightest option, official, fewest transitive dependencies — best for the
-  pub.dev score.
+- **+** Lightest option, official, fewest transitive dependencies — the
+  smallest possible conflict surface for consumers.
 - **+** Trivial to mock in tests.
 - **−** We hand-roll retry (~40 lines), fully unit-tested.
 - All HTTP lives behind `HttpTransport`, so switching to `dio` later would be an

@@ -1,19 +1,16 @@
-/// Minimal OMM placeholder — fully implemented in a later task.
+/// Minimal OMM placeholder — the full CCSDS OMM implementation is pending.
 ///
-/// Supports value equality so SatelliteTle equality is testable today.
-/// Replaced by the full CCSDS OMM class once the OMM domain task lands.
-///
-/// See Also:
-/// - ADR-10 (hand-written immutability, no codegen)
+/// Provides basic equality on its internal field map so that
+/// `SatelliteTle` equality is testable before the complete OMM model lands.
 library;
 
 import 'package:meta/meta.dart';
 
-/// Skeleton Orbit Mean-Elements Message.
+/// Skeleton Orbit Mean-Elements Message (stub).
 ///
 /// All mandatory CCSDS keywords are deferred to the full implementation.
-/// This stub exists so that SatelliteTle.omm can be typed and equality
-/// tests compile during the SatelliteTle task (CEL-17).
+/// This stub types the `SatelliteTle.omm` field and allows equality
+/// checks to compile while the complete OMM model is in progress.
 @immutable
 final class OMM {
   /// Creates a skeletal OMM with the given fields map.

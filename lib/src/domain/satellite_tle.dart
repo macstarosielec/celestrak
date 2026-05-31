@@ -1,12 +1,10 @@
 /// Immutable satellite TLE domain model.
 ///
-/// Hand-written immutable value type per ADR-10. Backs FR-9, FR-10, US-9,
-/// US-10 and the forward-compatibility contract for Package B.
+/// Hand-written immutable value type. Designed to be forward-compatible with
+/// downstream consumers such as a planned `satellite_passes` package.
 ///
 /// See Also:
-/// - [[ADR-10]] — hand-written immutability, no codegen
-/// - [[03-data-models-and-api#SatelliteTLE]] — binding field contract
-/// - [[CEL-17]] — implementing issue
+/// - [ADR-0010: hand-written models](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0010-hand-written-models.md)
 library;
 
 import 'package:celestrak/src/domain/omm.dart';
@@ -30,7 +28,7 @@ enum TLESource {
 /// are equal (value equality via [==] and [hashCode]).
 ///
 /// [line1] and [line2] are the canonical SGP4 inputs and are preserved
-/// verbatim. Downstream consumers read them directly (US-10, FR-9).
+/// verbatim for direct use by downstream consumers.
 ///
 /// ```dart
 /// final tle = await client.fetchByNoradId(25544);
