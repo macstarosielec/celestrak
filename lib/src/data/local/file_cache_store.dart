@@ -81,7 +81,11 @@ final class FileCacheStore implements CacheStore {
               : null;
       if (key == null) continue;
       if (keyPrefix == null || key.startsWith(keyPrefix)) {
-        await entity.delete();
+        try {
+          await entity.delete();
+        } on Exception {
+          // File may have been concurrently removed; treat as already cleared.
+        }
       }
     }
   }

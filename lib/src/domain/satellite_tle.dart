@@ -9,6 +9,7 @@ library;
 
 import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/omm.dart';
+import 'package:celestrak/src/domain/staleness.dart';
 import 'package:meta/meta.dart';
 
 /// Minimal, stable satellite record backed by two verbatim TLE lines.
@@ -63,16 +64,27 @@ final class SatelliteTle {
 
   /// Age of the orbital data: time elapsed since [epoch].
   ///
-  /// Evaluated at call-time using [DateTime.now].
+  /// Evaluated at call-time using [DateTime.now]. For deterministic tests,
+  /// prefer [ageAt] with an injected [DateTime].
   Duration get age => DateTime.now().toUtc().difference(epoch);
 
-  /// Whether orbital data is older than [staleThreshold].
+  /// Age of the orbital data relative to an explicit [now] timestamp.
   ///
-  /// Defaults to 3 days when no threshold is provided.
+  /// Use this in tests (with a fake clock) or whenever a consistent
+  /// reference time is required within a single computation.
+  Duration ageAt(DateTime now) => now.toUtc().difference(epoch);
+
+  /// Whether orbital data is older than [staleThreshold] at [now].
+  ///
+  /// [now] defaults to the real current time. Supply a pinned [DateTime] for
+  /// deterministic tests. [staleThreshold] defaults to 3 days — override for
+  /// orbits requiring tighter accuracy.
   bool isStale({
-    Duration staleThreshold = const Duration(days: 3),
+    DateTime? now,
+    Duration staleThreshold = defaultStaleThreshold,
   }) {
-    return age > staleThreshold;
+    final reference = (now ?? DateTime.now()).toUtc();
+    return ageAt(reference) > staleThreshold;
   }
 
   /// Classification character from Line 1, column 8 (1-indexed; character
