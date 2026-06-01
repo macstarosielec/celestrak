@@ -1,21 +1,23 @@
-/// Full CCSDS Orbit Mean-Elements Message domain model (ADR-6).
+/// Full CCSDS Orbit Mean-Elements Message domain model.
 ///
-/// Maps all mandatory OMM keywords plus CelesTrak header fields.
-/// Construction via fromCelestrakJson. Null object name / ID
-/// tolerated per FR-8.
+/// Maps all mandatory OMM keywords plus CelesTrak header fields. Parse
+/// CelesTrak OMM JSON into an [Omm] with `OmmParser`. Null object name and
+/// object ID are tolerated for analyst (80000-series) objects.
 ///
-/// See Also:
-/// - [[ADR-6]] — field scope and parsing rules
-/// - [[03-data-models-and-api#OMM]] — binding field contract
-/// - [[CEL-18]] — implementing issue
+/// See also:
+/// - [ADR-0006: OMM field scope](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0006-omm-field-scope.md)
 library;
 
 import 'package:meta/meta.dart';
 
-/// Sentinel marking an omitted copyWith argument.
+/// Sentinel marking an omitted [Omm.copyWith] argument.
 const Object _unset = Object();
 
-/// Resolves a nullable copyWith argument using sentinel pattern.
+/// Resolves a nullable [Omm.copyWith] argument.
+///
+/// Returns [fallback] when [value] is the [_unset] sentinel (argument
+/// omitted); otherwise returns [value] cast to `T`. Callers only ever pass
+/// the sentinel, `null`, or a `T`, so the cast is safe.
 T _resolve<T>(Object? value, T fallback) {
   if (identical(value, _unset)) return fallback;
   return value as T;
@@ -24,11 +26,11 @@ T _resolve<T>(Object? value, T fallback) {
 /// Complete Orbit Mean-Elements Message.
 ///
 /// Immutable value type. Two instances are equal when all fields match.
-/// Nullable fields (objectName, objectId) tolerate absent values for
+/// Nullable fields ([objectName], [objectId]) tolerate absent values for
 /// analyst (80000-series) objects.
 @immutable
 final class Omm {
-  /// Creates an Omm with the given fields.
+  /// Creates an [Omm] with the given fields.
   const Omm({
     required this.objectName,
     required this.objectId,
@@ -52,60 +54,6 @@ final class Omm {
     required this.meanMotionDot,
     required this.meanMotionDdot,
   });
-
-  /// Builds an Omm from a CelesTrak OMM JSON map.
-  ///
-  /// Keys are the uppercase CCSDS keyword names. All mandatory elements
-  /// must be present; object name and object ID may be null.
-  factory Omm.fromCelestrakJson(Map<String, dynamic> json) {
-    final objectName = json['OBJECT_NAME'] as String?;
-    final objectId = json['OBJECT_ID'] as String?;
-    final epochStr = json['EPOCH'] as String;
-    final centerName = _jsonString(json, 'CENTER_NAME');
-    final refFrame = _jsonString(json, 'REF_FRAME');
-    final timeSystem = _jsonString(json, 'TIME_SYSTEM');
-    final meanElementTheory = _jsonString(json, 'MEAN_ELEMENT_THEORY');
-
-    final meanMotion = _jsonDouble(json, 'MEAN_MOTION');
-    final eccentricity = _jsonDouble(json, 'ECCENTRICITY');
-    final inclination = _jsonDouble(json, 'INCLINATION');
-    final raOfAscNode = _jsonDouble(json, 'RA_OF_ASC_NODE');
-    final argOfPericenter = _jsonDouble(json, 'ARG_OF_PERICENTER');
-    final meanAnomaly = _jsonDouble(json, 'MEAN_ANOMALY');
-
-    final ephemerisType = _jsonInt(json, 'EPHEMERIS_TYPE');
-    final classificationType = _jsonString(json, 'CLASSIFICATION_TYPE');
-    final noradCatId = _jsonInt(json, 'NORAD_CAT_ID');
-    final elementSetNo = _jsonInt(json, 'ELEMENT_SET_NO');
-    final revAtEpoch = _jsonInt(json, 'REV_AT_EPOCH');
-    final bstar = _jsonDouble(json, 'BSTAR');
-    final meanMotionDot = _jsonDouble(json, 'MEAN_MOTION_DOT');
-    final meanMotionDdot = _jsonDouble(json, 'MEAN_MOTION_DDOT');
-
-    return Omm(
-      objectName: objectName,
-      objectId: objectId,
-      epoch: _parseIso8601(epochStr),
-      centerName: centerName,
-      refFrame: refFrame,
-      timeSystem: timeSystem,
-      meanElementTheory: meanElementTheory,
-      meanMotion: meanMotion,
-      eccentricity: eccentricity,
-      inclination: inclination,
-      raOfAscNode: raOfAscNode,
-      argOfPericenter: argOfPericenter,
-      meanAnomaly: meanAnomaly,
-      ephemerisType: ephemerisType,
-      classificationType: classificationType,
-      noradCatId: noradCatId,
-      elementSetNo: elementSetNo,
-      revAtEpoch: revAtEpoch,
-      bstar: bstar,
-      meanMotionDot: meanMotionDot,
-      meanMotionDdot: meanMotionDdot,
-    );
-  }
 
   // -- Header / metadata --
 
@@ -234,11 +182,11 @@ final class Omm {
 
   /// Returns a new [Omm] with the specified fields replaced.
   ///
-  /// Fields not provided retain their current values. Pass `null` for
-  /// [updateObjectName] or [updateObjectId] to clear them.
+  /// Fields not provided retain their current values. Pass `objectName: null`
+  /// or `objectId: null` to clear those nullable fields.
   Omm copyWith({
-    Object? updateObjectName = _unset,
-    Object? updateObjectId = _unset,
+    Object? objectName = _unset,
+    Object? objectId = _unset,
     DateTime? epoch,
     String? centerName,
     String? refFrame,
@@ -260,8 +208,8 @@ final class Omm {
     double? meanMotionDdot,
   }) {
     return Omm(
-      objectName: _resolve<String?>(updateObjectName, objectName),
-      objectId: _resolve<String?>(updateObjectId, objectId),
+      objectName: _resolve<String?>(objectName, this.objectName),
+      objectId: _resolve<String?>(objectId, this.objectId),
       epoch: epoch ?? this.epoch,
       centerName: centerName ?? this.centerName,
       refFrame: refFrame ?? this.refFrame,
@@ -289,34 +237,4 @@ final class Omm {
     return 'Omm(noradCatId: $noradCatId, objectName: $objectName, '
         'epoch: $epoch)';
   }
-}
-
-// -- Private helpers --
-
-String _jsonString(Map<String, dynamic> json, String key) {
-  final value = json[key];
-  if (value == null) {
-    throw StateError('Missing required OMM field: $key');
-  }
-  return value.toString();
-}
-
-int _jsonInt(Map<String, dynamic> json, String key) {
-  final value = json[key];
-  if (value == null) {
-    throw StateError('Missing required OMM field: $key');
-  }
-  return value is int ? value : int.parse(value.toString());
-}
-
-double _jsonDouble(Map<String, dynamic> json, String key) {
-  final value = json[key];
-  if (value == null) {
-    throw StateError('Missing required OMM field: $key');
-  }
-  return value is double ? value : double.parse(value.toString());
-}
-
-DateTime _parseIso8601(String source) {
-  return DateTime.parse(source).toUtc();
 }
