@@ -40,3 +40,21 @@ final class OmmParseException extends CelestrakException {
       ? 'OmmParseException: $message'
       : 'OmmParseException($field): $message';
 }
+
+/// Thrown when a raw TLE string cannot be parsed into a `SatelliteTle`.
+///
+/// [field] identifies the offending TLE line when the failure is specific
+/// (e.g. `'line1'` for a bad checksum or truncated epoch field).
+final class TleParseException extends CelestrakException {
+  /// Creates a [TleParseException] describing [message], optionally for a
+  /// specific TLE [field].
+  const TleParseException(super.message, {this.field});
+
+  /// The TLE field that failed to parse, when applicable.
+  final String? field;
+
+  @override
+  String toString() => field == null
+      ? 'TleParseException: $message'
+      : 'TleParseException($field): $message';
+}
