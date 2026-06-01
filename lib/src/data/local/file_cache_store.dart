@@ -30,10 +30,10 @@ final class FileCacheStore implements CacheStore {
   Future<Uint8List?> read(String key) async {
     try {
       final file = File(_dataPath(key));
-      if (!await file.exists()) return null;
+      if (!file.existsSync()) return null;
       // Treat a missing .ts file as a torn write — return null (FR-15/NFR-9).
       final tsFile = File(_tsPath(key));
-      if (!await tsFile.exists()) return null;
+      if (!tsFile.existsSync()) return null;
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) return null;
       return bytes;
@@ -58,7 +58,7 @@ final class FileCacheStore implements CacheStore {
   Future<Duration?> age(String key, DateTime now) async {
     try {
       final tsFile = File(_tsPath(key));
-      if (!await tsFile.exists()) return null;
+      if (!tsFile.existsSync()) return null;
       final raw = await tsFile.readAsString();
       final ts = DateTime.parse(raw.trim());
       return now.difference(ts);
@@ -69,8 +69,8 @@ final class FileCacheStore implements CacheStore {
 
   @override
   Future<void> clear({String? keyPrefix}) async {
-    if (!await directory.exists()) return;
-    final entities = await directory.list().toList();
+    if (!directory.existsSync()) return;
+    final entities = directory.listSync();
     for (final entity in entities) {
       if (entity is! File) continue;
       final name = entity.uri.pathSegments.last;
