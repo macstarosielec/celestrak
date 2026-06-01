@@ -1,44 +1,240 @@
-/// Minimal OMM placeholder — the full CCSDS OMM implementation is pending.
+/// Full CCSDS Orbit Mean-Elements Message domain model.
 ///
-/// Provides value equality over its field map so that `SatelliteTle`
-/// equality is well-defined before the complete OMM model lands.
+/// Maps all mandatory OMM keywords plus CelesTrak header fields. Parse
+/// CelesTrak OMM JSON into an [Omm] with `OmmParser`. Null object name and
+/// object ID are tolerated for analyst (80000-series) objects.
+///
+/// See also:
+/// - [ADR-0006: OMM field scope](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0006-omm-field-scope.md)
 library;
 
 import 'package:meta/meta.dart';
 
-/// Skeleton Orbit Mean-Elements Message (stub).
+/// Sentinel marking an omitted [Omm.copyWith] argument.
+const Object _unset = Object();
+
+/// Resolves a nullable [Omm.copyWith] argument.
 ///
-/// All mandatory CCSDS keywords are deferred to the full implementation.
-/// This stub types the `SatelliteTle.omm` field and gives it value
-/// equality while the complete OMM model is in progress.
+/// Returns [fallback] when [value] is the [_unset] sentinel (argument
+/// omitted); otherwise returns [value] cast to `T`. Callers only ever pass
+/// the sentinel, `null`, or a `T`, so the cast is safe.
+T _resolve<T>(Object? value, T fallback) {
+  if (identical(value, _unset)) return fallback;
+  return value as T;
+}
+
+/// Complete Orbit Mean-Elements Message.
+///
+/// Immutable value type. Two instances are equal when all fields match.
+/// Nullable fields ([objectName], [objectId]) tolerate absent values for
+/// analyst (80000-series) objects.
 @immutable
 final class Omm {
-  /// Creates a skeletal OMM from a raw field map.
-  ///
-  /// The fields are compared by value: two [Omm]s are equal when their
-  /// maps hold the same key/value pairs. Callers must not mutate the
-  /// provided map after construction.
-  const Omm(this._fields);
+  /// Creates an [Omm] with the given fields.
+  const Omm({
+    required this.objectName,
+    required this.objectId,
+    required this.epoch,
+    required this.centerName,
+    required this.refFrame,
+    required this.timeSystem,
+    required this.meanElementTheory,
+    required this.meanMotion,
+    required this.eccentricity,
+    required this.inclination,
+    required this.raOfAscNode,
+    required this.argOfPericenter,
+    required this.meanAnomaly,
+    required this.ephemerisType,
+    required this.classificationType,
+    required this.noradCatId,
+    required this.elementSetNo,
+    required this.revAtEpoch,
+    required this.bstar,
+    required this.meanMotionDot,
+    required this.meanMotionDdot,
+  });
 
-  final Map<String, Object?> _fields;
+  // -- Header / metadata --
+
+  /// Object name. Null for some analyst (80000-series) objects.
+  final String? objectName;
+
+  /// International Designator (`YYYY-NNNAAA`). Null if unavailable.
+  final String? objectId;
+
+  /// UTC epoch of the orbital elements.
+  final DateTime epoch;
+
+  /// Center body name; typically `"EARTH"`.
+  final String centerName;
+
+  /// Reference frame; typically `"TEME"`.
+  final String refFrame;
+
+  /// Time system; typically `"UTC"`.
+  final String timeSystem;
+
+  /// Mean element theory; typically `"SGP4"`.
+  final String meanElementTheory;
+
+  // -- Mean elements --
+
+  /// Mean motion in revolutions per day.
+  final double meanMotion;
+
+  /// Eccentricity; 0 <= e < 1.
+  final double eccentricity;
+
+  /// Inclination in degrees; 0-180.
+  final double inclination;
+
+  /// Right ascension of ascending node in degrees; 0-360.
+  final double raOfAscNode;
+
+  /// Argument of pericenter in degrees; 0-360.
+  final double argOfPericenter;
+
+  /// Mean anomaly in degrees; 0-360.
+  final double meanAnomaly;
+
+  // -- TLE-related parameters --
+
+  /// Ephemeris type number; usually `0`.
+  final int ephemerisType;
+
+  /// Classification: `'U'`, `'C'`, or `'S'`.
+  final String classificationType;
+
+  /// NORAD catalog number.
+  final int noradCatId;
+
+  /// Element set number.
+  final int elementSetNo;
+
+  /// Revolution number at epoch.
+  final int revAtEpoch;
+
+  /// Drag term (earth radii inverse).
+  final double bstar;
+
+  /// First derivative of mean motion (ndot / 2).
+  final double meanMotionDot;
+
+  /// Second derivative of mean motion (nddot / 6).
+  final double meanMotionDdot;
+
+  // -- Value equality --
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    if (other is! Omm) return false;
-    final otherFields = other._fields;
-    if (_fields.length != otherFields.length) return false;
-    for (final entry in _fields.entries) {
-      if (!otherFields.containsKey(entry.key) ||
-          otherFields[entry.key] != entry.value) {
-        return false;
-      }
-    }
-    return true;
+    return other is Omm &&
+        other.objectName == objectName &&
+        other.objectId == objectId &&
+        other.epoch == epoch &&
+        other.centerName == centerName &&
+        other.refFrame == refFrame &&
+        other.timeSystem == timeSystem &&
+        other.meanElementTheory == meanElementTheory &&
+        other.meanMotion == meanMotion &&
+        other.eccentricity == eccentricity &&
+        other.inclination == inclination &&
+        other.raOfAscNode == raOfAscNode &&
+        other.argOfPericenter == argOfPericenter &&
+        other.meanAnomaly == meanAnomaly &&
+        other.ephemerisType == ephemerisType &&
+        other.classificationType == classificationType &&
+        other.noradCatId == noradCatId &&
+        other.elementSetNo == elementSetNo &&
+        other.revAtEpoch == revAtEpoch &&
+        other.bstar == bstar &&
+        other.meanMotionDot == meanMotionDot &&
+        other.meanMotionDdot == meanMotionDdot;
   }
 
   @override
-  int get hashCode => Object.hashAllUnordered(
-        _fields.entries.map((e) => Object.hash(e.key, e.value)),
-      );
+  int get hashCode {
+    return Object.hashAll([
+      objectName,
+      objectId,
+      epoch,
+      centerName,
+      refFrame,
+      timeSystem,
+      meanElementTheory,
+      meanMotion,
+      eccentricity,
+      inclination,
+      raOfAscNode,
+      argOfPericenter,
+      meanAnomaly,
+      ephemerisType,
+      classificationType,
+      noradCatId,
+      elementSetNo,
+      revAtEpoch,
+      bstar,
+      meanMotionDot,
+      meanMotionDdot,
+    ]);
+  }
+
+  /// Returns a new [Omm] with the specified fields replaced.
+  ///
+  /// Fields not provided retain their current values. Pass `objectName: null`
+  /// or `objectId: null` to clear those nullable fields.
+  Omm copyWith({
+    Object? objectName = _unset,
+    Object? objectId = _unset,
+    DateTime? epoch,
+    String? centerName,
+    String? refFrame,
+    String? timeSystem,
+    String? meanElementTheory,
+    double? meanMotion,
+    double? eccentricity,
+    double? inclination,
+    double? raOfAscNode,
+    double? argOfPericenter,
+    double? meanAnomaly,
+    int? ephemerisType,
+    String? classificationType,
+    int? noradCatId,
+    int? elementSetNo,
+    int? revAtEpoch,
+    double? bstar,
+    double? meanMotionDot,
+    double? meanMotionDdot,
+  }) {
+    return Omm(
+      objectName: _resolve<String?>(objectName, this.objectName),
+      objectId: _resolve<String?>(objectId, this.objectId),
+      epoch: epoch ?? this.epoch,
+      centerName: centerName ?? this.centerName,
+      refFrame: refFrame ?? this.refFrame,
+      timeSystem: timeSystem ?? this.timeSystem,
+      meanElementTheory: meanElementTheory ?? this.meanElementTheory,
+      meanMotion: meanMotion ?? this.meanMotion,
+      eccentricity: eccentricity ?? this.eccentricity,
+      inclination: inclination ?? this.inclination,
+      raOfAscNode: raOfAscNode ?? this.raOfAscNode,
+      argOfPericenter: argOfPericenter ?? this.argOfPericenter,
+      meanAnomaly: meanAnomaly ?? this.meanAnomaly,
+      ephemerisType: ephemerisType ?? this.ephemerisType,
+      classificationType: classificationType ?? this.classificationType,
+      noradCatId: noradCatId ?? this.noradCatId,
+      elementSetNo: elementSetNo ?? this.elementSetNo,
+      revAtEpoch: revAtEpoch ?? this.revAtEpoch,
+      bstar: bstar ?? this.bstar,
+      meanMotionDot: meanMotionDot ?? this.meanMotionDot,
+      meanMotionDdot: meanMotionDdot ?? this.meanMotionDdot,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'Omm(noradCatId: $noradCatId, objectName: $objectName, '
+        'epoch: $epoch)';
+  }
 }

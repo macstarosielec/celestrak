@@ -170,7 +170,29 @@ void main() {
   });
 
   group('SatelliteTle omm equality and copyWith', () {
-    Omm ommWith(int value) => Omm(<String, Object?>{'a': value});
+    Omm ommWith(int value) => Omm(
+          objectName: 'test',
+          objectId: '2026-001A',
+          epoch: epoch,
+          centerName: 'EARTH',
+          refFrame: 'TEME',
+          timeSystem: 'UTC',
+          meanElementTheory: 'SGP4',
+          meanMotion: value.toDouble(),
+          eccentricity: 0,
+          inclination: 0,
+          raOfAscNode: 0,
+          argOfPericenter: 0,
+          meanAnomaly: 0,
+          ephemerisType: 0,
+          classificationType: 'U',
+          noradCatId: 25544,
+          elementSetNo: 999,
+          revAtEpoch: 0,
+          bstar: 0,
+          meanMotionDot: 0,
+          meanMotionDdot: 0,
+        );
 
     final base = SatelliteTle(
       noradId: 25544,
