@@ -4,9 +4,9 @@ Status: Accepted
 
 ## Context
 
-The package targets a clean `dart analyze` under strict lints, which the pub.dev
-score rewards. The ruleset should match the author's house style across
-projects.
+The package targets a clean `dart analyze` under strict lints to catch defects
+early and keep the code consistent. The ruleset should match the author's house
+style across projects.
 
 ## Decision
 
