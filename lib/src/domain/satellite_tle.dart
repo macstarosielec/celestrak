@@ -7,20 +7,9 @@
 /// - [ADR-0010: hand-written models](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0010-hand-written-models.md)
 library;
 
+import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/omm.dart';
 import 'package:meta/meta.dart';
-
-/// Origin of the TLE data.
-enum TleSource {
-  /// Fetched live from CelesTrak GP API.
-  celestrak,
-
-  /// Fetched live from Space-Track.org (credentialed).
-  spacetrack,
-
-  /// Served from the file cache.
-  local,
-}
 
 /// Minimal, stable satellite record backed by two verbatim TLE lines.
 ///

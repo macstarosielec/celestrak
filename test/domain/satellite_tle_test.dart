@@ -1,3 +1,4 @@
+import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/omm.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
 import 'package:test/test.dart';
