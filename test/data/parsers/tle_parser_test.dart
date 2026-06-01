@@ -154,7 +154,8 @@ void main() {
       expect(
         () => parser.parseAll(oneRecord),
         throwsA(
-            isA<TleParseException>().having((e) => e.field, 'field', isNull),),
+          isA<TleParseException>().having((e) => e.field, 'field', isNull),
+        ),
       );
     });
 
@@ -203,7 +204,8 @@ void main() {
       expect(
         () => parser.parse(line0, line1, badLine2),
         throwsA(
-            isA<TleParseException>().having((e) => e.field, 'field', 'line2'),),
+          isA<TleParseException>().having((e) => e.field, 'field', 'line2'),
+        ),
       );
     });
 
@@ -235,7 +237,8 @@ void main() {
       expect(
         () => parser.parse(line0, invalidLine1, line2, verifyChecksum: false),
         throwsA(
-            isA<TleParseException>().having((e) => e.field, 'field', 'line1'),),
+          isA<TleParseException>().having((e) => e.field, 'field', 'line1'),
+        ),
       );
     });
 
@@ -245,7 +248,8 @@ void main() {
       expect(
         () => parser.parse(line0, zeroLine1, line2, verifyChecksum: false),
         throwsA(
-            isA<TleParseException>().having((e) => e.field, 'field', 'line1'),),
+          isA<TleParseException>().having((e) => e.field, 'field', 'line1'),
+        ),
       );
     });
   });
