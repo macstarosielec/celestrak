@@ -50,8 +50,27 @@ final class FileCacheStore implements CacheStore {
     DateTime writtenAt,
   ) async {
     await directory.create(recursive: true);
-    await File(_dataPath(key)).writeAsBytes(bytes);
-    await File(_tsPath(key)).writeAsString(writtenAt.toIso8601String());
+    // Atomic write: write .ts first so that a crash between the two renames
+    // leaves .bin absent (read() returns null) rather than stale .ts paired
+    // with new .bin (FR-15).
+    final tmpData = File('${_dataPath(key)}.tmp');
+    final tmpTs = File('${_tsPath(key)}.tmp');
+    try {
+      await tmpTs.writeAsString(writtenAt.toIso8601String());
+      await tmpData.writeAsBytes(bytes);
+      await tmpTs.rename(_tsPath(key));
+      await tmpData.rename(_dataPath(key));
+    } catch (_) {
+      // Clean up any surviving .tmp files on partial failure.
+      for (final tmp in [tmpData, tmpTs]) {
+        try {
+          if (tmp.existsSync()) await tmp.delete();
+        } on Exception {
+          // Best-effort cleanup; ignore secondary errors.
+        }
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -70,23 +89,39 @@ final class FileCacheStore implements CacheStore {
   @override
   Future<void> clear({String? keyPrefix}) async {
     if (!directory.existsSync()) return;
-    final entities = directory.listSync();
-    for (final entity in entities) {
+
+    // Collect all files and group them by stem (filename without extension).
+    // Processing by stem ensures both .bin and .ts are always removed together,
+    // preventing orphaned .ts files from returning stale age() values.
+    final stems = <String>{};
+    for (final entity in directory.listSync()) {
       if (entity is! File) continue;
       final name = entity.uri.pathSegments.last;
-      final key = name.endsWith('.bin')
-          ? name.substring(0, name.length - 4)
-          : name.endsWith('.ts')
-              ? name.substring(0, name.length - 3)
-              : null;
-      if (key == null) continue;
-      if (keyPrefix == null || key.startsWith(keyPrefix)) {
-        try {
-          await entity.delete();
-        } on Exception {
-          // File may have been concurrently removed; treat as already cleared.
-        }
+      final String? stem;
+      if (name.endsWith('.bin')) {
+        stem = name.substring(0, name.length - 4);
+      } else if (name.endsWith('.ts')) {
+        stem = name.substring(0, name.length - 3);
+      } else {
+        stem = null;
+      }
+      if (stem != null && (keyPrefix == null || stem.startsWith(keyPrefix))) {
+        stems.add(stem);
       }
     }
+
+    // Delete both files for each matching stem in parallel.
+    await Future.wait(
+      stems.map((stem) async {
+        for (final path in [_dataPath(stem), _tsPath(stem)]) {
+          try {
+            await File(path).delete();
+          } on Exception {
+            // File may have been concurrently removed;
+            // treat as already cleared.
+          }
+        }
+      }),
+    );
   }
 }

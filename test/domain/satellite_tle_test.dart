@@ -116,8 +116,11 @@ void main() {
       source: TleSource.local,
     );
 
-    test('age is positive for past epoch', () {
-      expect(base.age.inDays, greaterThanOrEqualTo(150));
+    test('ageAt is positive for a pinned now after epoch', () {
+      // Use ageAt with a deterministic reference time to avoid wall-clock
+      // dependency. epoch is 2026-01-01; pinning to 2026-06-01 gives 151 days.
+      final pinnedNow = DateTime.utc(2026, 6, 1);
+      expect(base.ageAt(pinnedNow).inDays, equals(151));
     });
 
     test('isStale defaults to 3-day threshold', () {

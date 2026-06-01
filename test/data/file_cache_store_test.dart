@@ -81,6 +81,20 @@ void main() {
       expect(await store.read('cfg_foo'), isNotNull);
     });
 
+    test('clear(keyPrefix:) causes age to return null for cleared key',
+        () async {
+      await store.write('sat_25544', Uint8List.fromList([1]), clock.now);
+      await store.write('cfg_foo', Uint8List.fromList([2]), clock.now);
+
+      await store.clear(keyPrefix: 'sat_');
+
+      // Both .bin and .ts must be removed so age() returns null
+      // (no orphan .ts).
+      expect(await store.age('sat_25544', clock.now), isNull);
+      // Non-matching key must remain untouched.
+      expect(await store.age('cfg_foo', clock.now), isNotNull);
+    });
+
     test('clear() on empty directory is a no-op', () async {
       await expectLater(store.clear(), completes);
     });
@@ -134,6 +148,46 @@ void main() {
 
       final result = await store.age('entry1', clock.now);
       expect(result, equals(ttl));
+    });
+  });
+
+  group('FileCacheStore - atomic write (FR-15)', () {
+    test('no .tmp files remain after a successful write', () async {
+      await store.write('entry1', Uint8List.fromList([1, 2, 3]), clock.now);
+
+      final entities = tmp.directory.listSync();
+      final names = entities.map((e) => e.uri.pathSegments.last).toList();
+      expect(names, isNot(anyElement(endsWith('.tmp'))));
+    });
+
+    test('written data is immediately readable after rename', () async {
+      final bytes = Uint8List.fromList([42, 43, 44]);
+      await store.write('entry2', bytes, clock.now);
+
+      final result = await store.read('entry2');
+      expect(result, equals(bytes));
+    });
+
+    test('overwrites existing entry atomically', () async {
+      final first = Uint8List.fromList([1]);
+      final second = Uint8List.fromList([2, 3]);
+
+      await store.write('entry3', first, clock.now);
+      await store.write('entry3', second, clock.now);
+
+      final result = await store.read('entry3');
+      expect(result, equals(second));
+    });
+
+    test('age reflects timestamp of last write', () async {
+      await store.write('entry4', Uint8List.fromList([0]), clock.now);
+      clock.advance(const Duration(hours: 1));
+      await store.write('entry4', Uint8List.fromList([1]), clock.now);
+      clock.advance(const Duration(hours: 2));
+
+      // Age is measured from the second write, not the first.
+      final result = await store.age('entry4', clock.now);
+      expect(result, equals(const Duration(hours: 2)));
     });
   });
 }
