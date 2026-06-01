@@ -86,6 +86,30 @@ void main() {
     });
   });
 
+  group('TleParser.parse - epoch year-pivot boundary', () {
+    // The parser rule is: yy < 57 → 2000+yy, yy >= 57 → 1900+yy.
+    // These tests guard against an accidental flip of that operator.
+    const line0 = 'TEST SAT';
+    const line2 =
+        '2 25544  51.6400 337.6640 0001234  90.0000 270.0000 15.49796647484931';
+
+    test('epoch yy=56 maps to year 2056', () {
+      // Epoch field at cols 18-31: '56001.00000000'
+      const line1 =
+          '1 25544U 98067A   56001.00000000  .00010768  00000-0  17455-4 0  9990';
+      final tle = parser.parse(line0, line1, line2, verifyChecksum: false);
+      expect(tle.epoch.year, equals(2056));
+    });
+
+    test('epoch yy=57 maps to year 1957', () {
+      // Epoch field at cols 18-31: '57001.00000000'
+      const line1 =
+          '1 25544U 98067A   57001.00000000  .00010768  00000-0  17455-4 0  9990';
+      final tle = parser.parse(line0, line1, line2, verifyChecksum: false);
+      expect(tle.epoch.year, equals(1957));
+    });
+  });
+
   group('TleParser.parse - bad checksum', () {
     late List<String> lines;
 
