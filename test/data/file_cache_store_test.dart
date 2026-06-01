@@ -12,8 +12,8 @@ void main() {
   late FileCacheStore store;
   late FakeClock clock;
 
-  setUp(() {
-    tmp = TempCache();
+  setUp(() async {
+    tmp = await TempCache.create();
     store = FileCacheStore(tmp.directory);
     clock = FakeClock(DateTime.utc(2026, 1, 1));
   });
@@ -47,6 +47,12 @@ void main() {
     test('age returns null for missing key', () async {
       final result = await store.age('missing', clock.now);
       expect(result, isNull);
+    });
+
+    test('age is zero immediately after write', () async {
+      await store.write('entry1', Uint8List.fromList([0]), clock.now);
+      final result = await store.age('entry1', clock.now);
+      expect(result, equals(Duration.zero));
     });
   });
 
@@ -97,6 +103,12 @@ void main() {
 
     test('clear() on empty directory is a no-op', () async {
       await expectLater(store.clear(), completes);
+    });
+
+    test('clear(keyPrefix:) that matches nothing is a no-op', () async {
+      await store.write('entry1', Uint8List.fromList([1]), clock.now);
+      await store.clear(keyPrefix: 'nomatch_');
+      expect(await store.read('entry1'), isNotNull);
     });
   });
 
@@ -155,7 +167,7 @@ void main() {
     test('no .tmp files remain after a successful write', () async {
       await store.write('entry1', Uint8List.fromList([1, 2, 3]), clock.now);
 
-      final entities = tmp.directory.listSync();
+      final entities = await tmp.directory.list().toList();
       final names = entities.map((e) => e.uri.pathSegments.last).toList();
       expect(names, isNot(anyElement(endsWith('.tmp'))));
     });
