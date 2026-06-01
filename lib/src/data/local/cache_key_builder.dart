@@ -6,7 +6,7 @@
 ///
 /// Key format (ADR-8):
 /// ```text
-/// {queryType}:{queryValue}|fmt:{format}|src:{source}
+/// {queryType}:{queryValue}~fmt:{format}~src:{source}
 /// ```
 /// All components are lower-cased and sanitised before joining.
 /// The resulting string is guaranteed to pass `CacheStore.validateKey`.
@@ -17,17 +17,24 @@
 ///   25544,
 ///   format: CelestrakFormat.omm,
 /// );
-/// // → 'norad:25544|fmt:omm|src:celestrak'
+/// // → 'norad:25544~fmt:omm~src:celestrak'
 /// ```
 library;
 
 import 'package:celestrak/src/domain/enums.dart';
 
+// Characters allowed anywhere in a cache key (excluding `~` which is the
+// segment separator — added separately in _assertValid).
+final _invalidChars = RegExp(r'[^a-z0-9:_\-~]');
+
+// Full validation pattern: alphanumeric plus `:`, `_`, `-`, `~`.
+final _validKey = RegExp(r'^[A-Za-z0-9:_\-~]+$');
+
 /// Builds validated cache keys conforming to the ADR-8 key scheme.
 ///
 /// Every public factory normalises its inputs, joins the components, and
 /// asserts the result against `CacheStore.validateKey`-compatible rules
-/// (alphanumeric plus `:`, `_`, `-`, `|`).  Keys never contain path-traversal
+/// (alphanumeric plus `:`, `_`, `-`, `~`).  Keys never contain path-traversal
 /// characters.
 ///
 /// All constructors are private; use the named factories.
@@ -36,7 +43,7 @@ final class CacheKeyBuilder {
 
   // ── Segment separators ────────────────────────────────────────────────────
 
-  static const _sep = '|';
+  static const _sep = '~';
   static const _fmtPrefix = 'fmt:';
   static const _srcPrefix = 'src:';
 
@@ -118,16 +125,14 @@ final class CacheKeyBuilder {
   }
 
   /// Normalises a string segment: lower-case, replace spaces with `_`,
-  /// strip characters outside `[a-z0-9:_\-|]`.
-  static String _normalise(String value) => value
-      .toLowerCase()
-      .replaceAll(' ', '_')
-      .replaceAll(RegExp(r'[^a-z0-9:_\-|]'), '');
+  /// strip characters outside `[a-z0-9:_\-~]`.
+  static String _normalise(String value) =>
+      value.toLowerCase().replaceAll(' ', '_').replaceAll(_invalidChars, '');
 
   /// Throws [ArgumentError] if [key] contains any character that would be
-  /// rejected by `CacheStore.validateKey` plus the `|` separator used here.
+  /// rejected by `CacheStore.validateKey` plus the `~` separator used here.
   static void _assertValid(String key) {
-    if (!RegExp(r'^[A-Za-z0-9:_\-|]+$').hasMatch(key)) {
+    if (!_validKey.hasMatch(key)) {
       throw ArgumentError.value(
         key,
         'key',
