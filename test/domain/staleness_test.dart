@@ -126,14 +126,14 @@ void main() {
 
     test('returns custom threshold when provided', () {
       const custom = Duration(hours: 12);
-      final checker = StalenessChecker(staleThreshold: custom);
+      const checker = StalenessChecker(staleThreshold: custom);
       expect(checker.staleThreshold, equals(custom));
     });
   });
 
   group('StalenessChecker - isFresh', () {
     test('returns false for null cacheAge (cache miss)', () {
-      final checker = StalenessChecker();
+      const checker = StalenessChecker();
       expect(
         checker.isFresh(null, ttl: const Duration(hours: 2)),
         isFalse,
@@ -141,7 +141,7 @@ void main() {
     });
 
     test('returns true when cacheAge is below ttl', () {
-      final checker = StalenessChecker();
+      const checker = StalenessChecker();
       expect(
         checker.isFresh(
           const Duration(minutes: 30),
@@ -152,7 +152,7 @@ void main() {
     });
 
     test('returns false when cacheAge equals ttl (boundary exclusive)', () {
-      final checker = StalenessChecker();
+      const checker = StalenessChecker();
       expect(
         checker.isFresh(
           const Duration(hours: 1),
@@ -163,7 +163,7 @@ void main() {
     });
 
     test('returns false when cacheAge exceeds ttl', () {
-      final checker = StalenessChecker();
+      const checker = StalenessChecker();
       expect(
         checker.isFresh(
           const Duration(hours: 2),
@@ -174,7 +174,7 @@ void main() {
     });
 
     test('returns true for Duration.zero age with positive ttl', () {
-      final checker = StalenessChecker();
+      const checker = StalenessChecker();
       expect(
         checker.isFresh(Duration.zero, ttl: const Duration(seconds: 1)),
         isTrue,

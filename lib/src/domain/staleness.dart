@@ -5,7 +5,7 @@
 /// responsibility.
 ///
 /// See also:
-/// - [StalenessChecker] — encapsulates a [Clock] and a [staleThreshold].
+/// - [StalenessChecker] — encapsulates a [Clock] and a `staleThreshold`.
 /// - FR-16: staleness is always reported, never causes silent data discard
 library;
 
@@ -66,7 +66,8 @@ final class StalenessChecker {
   /// Returns `true` when the entry whose cache age is [cacheAge] is within the
   /// given [ttl] (time-to-live).
   ///
-  /// A cache entry is considered fresh when its age is strictly less than [ttl].
+  /// A cache entry is considered fresh when its age is strictly less
+  /// than [ttl].
   /// When [cacheAge] is `null` (entry not found), returns `false`.
   bool isFresh(Duration? cacheAge, {required Duration ttl}) {
     if (cacheAge == null) return false;

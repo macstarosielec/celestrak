@@ -13,7 +13,7 @@
 ///   `http` or `dart:io` exception escapes the public API.
 /// - `Clock` / `SystemClock` — injectable time source for TTL and staleness.
 /// - `StalenessChecker` — classifies orbital data freshness against a
-///   configurable [defaultStaleThreshold].
+///   configurable `defaultStaleThreshold`.
 library;
 
 export 'src/data/parsers/omm_parser.dart';

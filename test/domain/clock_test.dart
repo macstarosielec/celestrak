@@ -53,15 +53,15 @@ void main() {
     });
 
     test('advance moves now forward', () {
-      final clock = FakeClock(DateTime.utc(2026, 1, 1));
-      clock.advance(const Duration(hours: 2));
+      final clock = FakeClock(DateTime.utc(2026, 1, 1))
+        ..advance(const Duration(hours: 2));
       expect(clock.now, equals(DateTime.utc(2026, 1, 1, 2)));
     });
 
     test('multiple advances accumulate', () {
-      final clock = FakeClock(DateTime.utc(2026, 1, 1));
-      clock.advance(const Duration(hours: 1));
-      clock.advance(const Duration(minutes: 30));
+      final clock = FakeClock(DateTime.utc(2026, 1, 1))
+        ..advance(const Duration(hours: 1))
+        ..advance(const Duration(minutes: 30));
       expect(clock.now, equals(DateTime.utc(2026, 1, 1, 1, 30)));
     });
   });

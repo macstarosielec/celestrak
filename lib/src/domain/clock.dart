@@ -12,7 +12,7 @@ library;
 ///
 /// Inject this into any component that makes decisions based on the current
 /// time (TTL checks, age computations, staleness classification). In tests,
-/// replace with a [FakeClock]-like implementation to advance time
+/// replace with a `FakeClock`-like implementation to advance time
 /// deterministically.
 abstract interface class Clock {
   /// Returns the current time as a UTC [DateTime].
