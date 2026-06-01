@@ -128,6 +128,69 @@ void main() {
       expect(base.isStale(staleThreshold: const Duration(days: 400)), isFalse);
     });
 
+    test('ageAt returns deterministic duration given a pinned now', () {
+      final pinnedNow = DateTime.utc(2026, 1, 2);
+      final result = base.ageAt(pinnedNow);
+      expect(result, equals(const Duration(days: 1)));
+    });
+
+    test('ageAt returns zero when now equals epoch', () {
+      final result = base.ageAt(DateTime.utc(2026, 1, 1));
+      expect(result, equals(Duration.zero));
+    });
+
+    test('ageAt with future now returns positive duration', () {
+      final pinnedNow = DateTime.utc(2026, 1, 4);
+      expect(base.ageAt(pinnedNow), equals(const Duration(days: 3)));
+    });
+
+    test('isStale(now:) is true when ageAt exceeds threshold', () {
+      final pinnedNow = DateTime.utc(2026, 1, 5);
+      expect(
+        base.isStale(
+          now: pinnedNow,
+          staleThreshold: const Duration(days: 3),
+        ),
+        isTrue,
+      );
+    });
+
+    test('isStale(now:) is false when ageAt is within threshold', () {
+      final pinnedNow = DateTime.utc(2026, 1, 2);
+      expect(
+        base.isStale(
+          now: pinnedNow,
+          staleThreshold: const Duration(days: 3),
+        ),
+        isFalse,
+      );
+    });
+
+    test('isStale(now:) boundary: exactly at threshold is not stale', () {
+      // age == 3 days exactly → NOT stale (> is strict)
+      final pinnedNow = DateTime.utc(2026, 1, 4);
+      expect(
+        base.isStale(
+          now: pinnedNow,
+          staleThreshold: const Duration(days: 3),
+        ),
+        isFalse,
+      );
+    });
+
+    test('isStale(now:) is false when now is before epoch (future epoch)', () {
+      // A future epoch yields negative age; negative > Duration(days:3) is
+      // false in Dart, so the satellite is correctly treated as fresh.
+      final futureNow = DateTime.utc(2025, 12, 31);
+      expect(
+        base.isStale(
+          now: futureNow,
+          staleThreshold: const Duration(days: 3),
+        ),
+        isFalse,
+      );
+    });
+
     test('classification returns U for unclassified', () {
       expect(base.classification, equals('U'));
     });
