@@ -1,4 +1,5 @@
-/// Enumerations shared across the celestrak package.
+/// Enumerations used throughout the celestrak package:
+/// [TleSource], [CelestrakFormat], and [SatelliteCategory].
 library;
 
 /// Origin of a `SatelliteTle` record.
@@ -70,12 +71,14 @@ enum SatelliteCategory {
   /// GLONASS operational constellation.
   glonass,
 
-  /// Cosmos 2251 debris field.
+  /// Debris from the 2009 Cosmos 2251 / Iridium 33 collision.
   ///
-  /// CelesTrak groups debris by specific event; this value targets the
-  /// Cosmos 2251 / Iridium 33 collision debris, which is the largest
-  /// tracked debris population.
-  debris,
+  /// This value targets the Cosmos 2251 / Iridium 33 collision debris, which
+  /// is the largest single tracked debris population on CelesTrak. It does
+  /// **not** represent all catalogued debris. For other debris groups (e.g.
+  /// Fengyun 1C, Iridium 33) use `fetchCategoryByGroup` with the
+  /// corresponding CelesTrak group string.
+  cosmos2251Debris,
 
   /// All active payloads in the catalog.
   active,
@@ -95,7 +98,7 @@ enum SatelliteCategory {
         SatelliteCategory.gps => 'gps-ops',
         SatelliteCategory.galileo => 'galileo',
         SatelliteCategory.glonass => 'glo-ops',
-        SatelliteCategory.debris => 'cosmos-2251-debris',
+        SatelliteCategory.cosmos2251Debris => 'cosmos-2251-debris',
         SatelliteCategory.active => 'active',
         SatelliteCategory.lastThirtyDays => 'last-30-days',
       };

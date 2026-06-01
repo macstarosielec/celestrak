@@ -45,7 +45,7 @@ void main() {
       SatelliteCategory.gps: 'gps-ops',
       SatelliteCategory.galileo: 'galileo',
       SatelliteCategory.glonass: 'glo-ops',
-      SatelliteCategory.debris: 'cosmos-2251-debris',
+      SatelliteCategory.cosmos2251Debris: 'cosmos-2251-debris',
       SatelliteCategory.active: 'active',
       SatelliteCategory.lastThirtyDays: 'last-30-days',
     };
