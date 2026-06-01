@@ -74,7 +74,13 @@ final class FileCacheStore implements CacheStore {
     for (final entity in entities) {
       if (entity is! File) continue;
       final name = entity.uri.pathSegments.last;
-      if (keyPrefix == null || name.startsWith(keyPrefix)) {
+      final key = name.endsWith('.bin')
+          ? name.substring(0, name.length - 4)
+          : name.endsWith('.ts')
+              ? name.substring(0, name.length - 3)
+              : null;
+      if (key == null) continue;
+      if (keyPrefix == null || key.startsWith(keyPrefix)) {
         await entity.delete();
       }
     }
