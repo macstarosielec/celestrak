@@ -12,4 +12,6 @@ analyzer:
 
 linter:
   rules:
+    # copyWith uses a sentinel default for the nullable `omm` argument, so
+    # passing explicit values there is intentional rather than redundant.
     avoid_redundant_argument_values: false

@@ -1,3 +1,4 @@
+import 'package:celestrak/src/domain/omm.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
 import 'package:test/test.dart';
 
@@ -17,7 +18,7 @@ void main() {
       line2: line2,
       epoch: epoch,
       fetchedAt: fetchedAt,
-      source: TLESource.celestrak,
+      source: TleSource.celestrak,
     );
 
     test('identical instances are equal', () {
@@ -32,7 +33,7 @@ void main() {
         line2: line2,
         epoch: epoch,
         fetchedAt: fetchedAt,
-        source: TLESource.celestrak,
+        source: TleSource.celestrak,
       );
       expect(tleA, equals(tleB));
     });
@@ -58,7 +59,7 @@ void main() {
     });
 
     test('different source -> not equal', () {
-      final c = tleA.copyWith(source: TLESource.local);
+      final c = tleA.copyWith(source: TleSource.local);
       expect(tleA, isNot(equals(c)));
     });
 
@@ -70,7 +71,7 @@ void main() {
         line2: line2,
         epoch: epoch,
         fetchedAt: fetchedAt,
-        source: TLESource.celestrak,
+        source: TleSource.celestrak,
       );
       expect(tleA.hashCode, equals(tleB.hashCode));
     });
@@ -84,7 +85,7 @@ void main() {
       line2: line2,
       epoch: epoch,
       fetchedAt: fetchedAt,
-      source: TLESource.celestrak,
+      source: TleSource.celestrak,
     );
 
     test('no args returns equal copy', () {
@@ -111,7 +112,7 @@ void main() {
       line2: line2,
       epoch: DateTime.utc(2026, 1, 1),
       fetchedAt: fetchedAt,
-      source: TLESource.local,
+      source: TleSource.local,
     );
 
     test('age is positive for past epoch', () {
@@ -145,7 +146,7 @@ void main() {
         line2: line2,
         epoch: epoch,
         fetchedAt: fetchedAt,
-        source: TLESource.celestrak,
+        source: TleSource.celestrak,
       );
       expect(tle.noradId, isNotNull);
     });
@@ -160,11 +161,48 @@ void main() {
         line2: line2,
         epoch: epoch,
         fetchedAt: fetchedAt,
-        source: TLESource.celestrak,
+        source: TleSource.celestrak,
       );
       final s = tle.toString();
       expect(s, contains('25544'));
       expect(s, contains('ISS (ZARYA)'));
+    });
+  });
+
+  group('SatelliteTle omm equality and copyWith', () {
+    Omm ommWith(int value) => Omm(<String, Object?>{'a': value});
+
+    final base = SatelliteTle(
+      noradId: 25544,
+      name: 'ISS (ZARYA)',
+      line1: line1,
+      line2: line2,
+      epoch: epoch,
+      fetchedAt: fetchedAt,
+      source: TleSource.celestrak,
+    );
+
+    test('equal omm content -> equal and same hashCode', () {
+      final a = base.copyWith(omm: ommWith(1));
+      final b = base.copyWith(omm: ommWith(1));
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('different omm content -> not equal', () {
+      final a = base.copyWith(omm: ommWith(1));
+      final b = base.copyWith(omm: ommWith(2));
+      expect(a, isNot(equals(b)));
+    });
+
+    test('copyWith can clear omm to null', () {
+      final withOmm = base.copyWith(omm: ommWith(1));
+      expect(withOmm.copyWith(omm: null).omm, isNull);
+    });
+
+    test('copyWith without omm keeps existing omm', () {
+      final withOmm = base.copyWith(omm: ommWith(1));
+      expect(withOmm.copyWith(name: 'RENAMED').omm, equals(ommWith(1)));
     });
   });
 }

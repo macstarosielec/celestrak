@@ -11,7 +11,7 @@ import 'package:celestrak/src/domain/omm.dart';
 import 'package:meta/meta.dart';
 
 /// Origin of the TLE data.
-enum TLESource {
+enum TleSource {
   /// Fetched live from CelesTrak GP API.
   celestrak,
 
@@ -67,10 +67,10 @@ final class SatelliteTle {
   final DateTime fetchedAt;
 
   /// Data source provenance.
-  final TLESource source;
+  final TleSource source;
 
   /// Full OMM message when fetched in OMM format; `null` for pure-TLE fetches.
-  final OMM? omm;
+  final Omm? omm;
 
   /// Age of the orbital data: time elapsed since [epoch].
   ///
@@ -86,10 +86,11 @@ final class SatelliteTle {
     return age > staleThreshold;
   }
 
-  /// Classification from Line 1 column 8 (`'U'`, `'C'`, or `'S'`).
+  /// Classification character from Line 1, column 8 (1-indexed; character
+  /// index 7): `'U'` unclassified, `'C'` classified, or `'S'` secret.
   ///
   /// Returns `null` if [line1] is too short to contain the
-  /// classification field (less than 9 characters).
+  /// classification field (fewer than 9 characters).
   String? get classification {
     if (line1.length < 9) return null;
     return line1[7];
@@ -123,9 +124,14 @@ final class SatelliteTle {
     );
   }
 
+  /// Sentinel marking an omitted [copyWith] argument, so callers can
+  /// distinguish "leave [omm] unchanged" from "set [omm] to `null`".
+  static const Object _unset = Object();
+
   /// Returns a new [SatelliteTle] with the specified fields replaced.
   ///
-  /// Fields not provided retain their current values.
+  /// Fields not provided retain their current values. Pass `omm: null`
+  /// explicitly to clear the optional OMM payload.
   SatelliteTle copyWith({
     int? noradId,
     String? name,
@@ -133,8 +139,8 @@ final class SatelliteTle {
     String? line2,
     DateTime? epoch,
     DateTime? fetchedAt,
-    TLESource? source,
-    OMM? updateOmm,
+    TleSource? source,
+    Object? omm = _unset,
   }) {
     return SatelliteTle(
       noradId: noradId ?? this.noradId,
@@ -144,13 +150,13 @@ final class SatelliteTle {
       epoch: epoch ?? this.epoch,
       fetchedAt: fetchedAt ?? this.fetchedAt,
       source: source ?? this.source,
-      omm: updateOmm ?? omm,
+      omm: identical(omm, _unset) ? this.omm : omm as Omm?,
     );
   }
 
   @override
   String toString() {
     return 'SatelliteTle(noradId: $noradId, name: $name, '
-        'epoch: $epoch, age: ${age.inHours}h, source: $source)';
+        'epoch: $epoch, source: $source)';
   }
 }
