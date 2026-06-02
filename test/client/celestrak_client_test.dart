@@ -176,9 +176,14 @@ void main() {
     });
 
     test('maxRetries defaults to kDefaultMaxAttempts', () {
-      final client = _client(
-        (_) async => http.Response('', 200),
-        maxRetries: kDefaultMaxAttempts,
+      // Construct without specifying maxRetries to verify the default is used.
+      // The _client helper's own default is 1, so we bypass it and construct
+      // CelestrakClient.withStore directly.
+      final rawClient = http.Client();
+      addTearDown(rawClient.close);
+      final client = CelestrakClient.withStore(
+        httpClient: rawClient,
+        cacheStore: MemoryCacheStore(),
       );
 
       expect(client.maxRetries, equals(kDefaultMaxAttempts));
@@ -194,9 +199,11 @@ void main() {
     });
 
     test('maxRetries: 0 throws ArgumentError', () {
+      final rawClient = http.Client();
+      addTearDown(rawClient.close);
       expect(
         () => CelestrakClient.withStore(
-          httpClient: http.Client(),
+          httpClient: rawClient,
           cacheStore: MemoryCacheStore(),
           maxRetries: 0,
         ),
@@ -440,43 +447,56 @@ void main() {
   });
 
   // ── maxRetries behaviour ──────────────────────────────────────────────────
+  //
+  // These tests drive the real HttpTransport with a failing handler. The
+  // transport applies exponential backoff between attempts (~600 ms total for
+  // maxRetries:3), so they are intentionally tagged with a generous timeout to
+  // avoid flakiness on slow CI runners.
 
   group('CelestrakClient — maxRetries behaviour', () {
-    test('maxRetries:3 results in exactly 3 HTTP attempts on 503', () async {
-      var calls = 0;
-      final client = _client(
-        (_) async {
-          calls++;
-          return http.Response('server error', 503);
-        },
-        maxRetries: 3,
-      );
+    test(
+      'maxRetries:3 results in exactly 3 HTTP attempts on 503',
+      () async {
+        var calls = 0;
+        final client = _client(
+          (_) async {
+            calls++;
+            return http.Response('server error', 503);
+          },
+          maxRetries: 3,
+        );
 
-      await expectLater(
-        client.fetchByNoradId(25544),
-        throwsA(isA<NetworkException>()),
-      );
+        await expectLater(
+          client.fetchByNoradId(25544),
+          throwsA(isA<NetworkException>()),
+        );
 
-      expect(calls, equals(3));
-    });
+        expect(calls, equals(3));
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
 
-    test('maxRetries:1 results in exactly 1 HTTP attempt on 503', () async {
-      var calls = 0;
-      final client = _client(
-        (_) async {
-          calls++;
-          return http.Response('server error', 503);
-        },
-        maxRetries: 1,
-      );
+    test(
+      'maxRetries:1 results in exactly 1 HTTP attempt on 503',
+      () async {
+        var calls = 0;
+        final client = _client(
+          (_) async {
+            calls++;
+            return http.Response('server error', 503);
+          },
+          maxRetries: 1,
+        );
 
-      await expectLater(
-        client.fetchByNoradId(25544),
-        throwsA(isA<NetworkException>()),
-      );
+        await expectLater(
+          client.fetchByNoradId(25544),
+          throwsA(isA<NetworkException>()),
+        );
 
-      expect(calls, equals(1));
-    });
+        expect(calls, equals(1));
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
   });
 
   // ── allowStale (FR-17) ────────────────────────────────────────────────────
