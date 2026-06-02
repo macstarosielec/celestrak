@@ -24,3 +24,4 @@ export 'src/domain/failures.dart';
 export 'src/domain/omm.dart';
 export 'src/domain/satellite_tle.dart';
 export 'src/domain/staleness.dart';
+export 'src/network/http_transport.dart';
