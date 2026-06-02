@@ -190,6 +190,8 @@ final class CelestrakClient {
   final http.Client _httpClient;
   final Duration _defaultTtl;
   final CelestrakFormat _defaultFormat;
+  // Stored for introspection via [timeout] / [maxRetries] getters; the actual
+  // values are forwarded to [HttpTransport] during construction.
   final Duration _timeout;
   final int _maxRetries;
   final StalenessChecker _staleness;
@@ -204,7 +206,8 @@ final class CelestrakClient {
   /// Per-attempt HTTP deadline.
   Duration get timeout => _timeout;
 
-  /// Total number of attempts (1 initial + up to [maxRetries] − 1 retries).
+  /// Total number of HTTP attempts
+  /// (1 initial + up to `maxRetries − 1` retries).
   int get maxRetries => _maxRetries;
 
   /// Staleness threshold used when calling [isStale].

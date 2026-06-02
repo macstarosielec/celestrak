@@ -103,7 +103,7 @@ final class FileCacheStore implements CacheStore {
     // Processing by stem ensures both .bin and .ts are always removed together,
     // preventing orphaned .ts files from returning stale age() values.
     final stems = <String>{};
-    await for (final entity in directory.list()) {
+    for (final entity in directory.listSync()) {
       if (entity is! File) continue;
       final name = entity.uri.pathSegments.last;
       final String? stem;
