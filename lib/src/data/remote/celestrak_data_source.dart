@@ -120,6 +120,11 @@ final class CelestrakDataSource {
   ///
   /// The length guard avoids allocating a trimmed copy of large bodies (valid
   /// JSON or TLE data can be tens of kilobytes) on every successful response.
+  ///
+  /// `+2` allows for the two standard HTTP line-ending characters that an HTTP
+  /// server may append to the response body: a single newline (`\n`, +1) or a
+  /// CRLF pair (`\r\n`, +2). Bodies longer than this cannot be the sentinel,
+  /// so trimming is skipped.
   bool _isNotFound(String body) =>
       body.length <= kNotFoundSentinel.length + 2 &&
       body.trim() == kNotFoundSentinel;
