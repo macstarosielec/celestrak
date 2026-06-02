@@ -18,12 +18,7 @@ import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
 import 'package:celestrak/src/domain/tle_repository.dart';
-
-/// Default value for the [TleRepository.fetchByNoradId] `ttl` parameter.
-///
-/// Cached entries older than this are considered stale and trigger a remote
-/// fetch. See also [TleRepository.fetchByNoradId].
-const Duration kDefaultTtl = Duration(hours: 2);
+import 'package:celestrak/src/network/http_transport.dart' show kDefaultTtl;
 
 /// Production [TleRepository] that combines a [CacheStore], a
 /// [CelestrakDataSource], and a [Clock] to deliver the full
