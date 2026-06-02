@@ -79,6 +79,39 @@ final class NetworkException extends CelestrakException {
   }
 }
 
+/// Thrown when CelesTrak reports no data for the requested object.
+///
+/// This is raised when the remote response body is the well-known sentinel
+/// `"No GP data found"`, indicating that the requested NORAD catalog ID is
+/// not present in the CelesTrak database.
+///
+/// [noradId] is the catalog number that was queried.
+/// [uri] is the request URI.
+final class SatelliteNotFoundException extends CelestrakException {
+  /// Creates a [SatelliteNotFoundException] for [noradId] at [uri].
+  const SatelliteNotFoundException(
+    super.message, {
+    required this.noradId,
+    this.uri,
+  });
+
+  /// The NORAD catalog number that was not found.
+  final int noradId;
+
+  /// The URI that returned the not-found sentinel.
+  final Uri? uri;
+
+  @override
+  String toString() {
+    final parts = <String>[
+      'SatelliteNotFoundException: $message',
+      'noradId=$noradId',
+    ];
+    if (uri != null) parts.add('uri=$uri');
+    return parts.join(', ');
+  }
+}
+
 /// Thrown when a raw TLE string cannot be parsed into a `SatelliteTle`.
 ///
 /// [field] identifies the offending TLE line when the failure is specific
