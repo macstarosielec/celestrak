@@ -8,6 +8,9 @@
 /// - [ADR-0012: error strategy](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0012-error-strategy.md)
 library;
 
+import 'dart:async' show TimeoutException;
+import 'dart:io' show SocketException;
+
 /// Base type for every error raised by the celestrak package.
 ///
 /// Sealed: all subtypes are declared in this library, which lets consumers
@@ -39,6 +42,41 @@ final class OmmParseException extends CelestrakException {
   String toString() => field == null
       ? 'OmmParseException: $message'
       : 'OmmParseException($field): $message';
+}
+
+/// Thrown when an HTTP request fails after all retry attempts are exhausted,
+/// or immediately on a non-retryable error (e.g. a 4xx response).
+///
+/// [statusCode] is the HTTP status code of the last response, when available.
+/// [uri] is the target URI of the failing request.
+/// [cause] is the underlying exception that triggered the failure, when
+/// available (e.g. a [TimeoutException] or [SocketException]).
+final class NetworkException extends CelestrakException {
+  /// Creates a [NetworkException] describing [message].
+  const NetworkException(
+    super.message, {
+    this.statusCode,
+    this.uri,
+    this.cause,
+  });
+
+  /// The HTTP status code of the last response, if one was received.
+  final int? statusCode;
+
+  /// The URI that the request was sent to.
+  final Uri? uri;
+
+  /// The underlying exception that caused the failure, if available.
+  final Object? cause;
+
+  @override
+  String toString() {
+    final parts = <String>['NetworkException: $message'];
+    if (statusCode != null) parts.add('statusCode=$statusCode');
+    if (uri != null) parts.add('uri=$uri');
+    if (cause != null) parts.add('cause=${cause.runtimeType}');
+    return parts.join(', ');
+  }
 }
 
 /// Thrown when a raw TLE string cannot be parsed into a `SatelliteTle`.
