@@ -4,8 +4,6 @@
 /// parsing, and provenance stamping (FR-12, FR-17).
 library;
 
-import 'package:celestrak/celestrak.dart'
-    show NetworkException, SatelliteNotFoundException;
 import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/failures.dart'
     show NetworkException, SatelliteNotFoundException;
