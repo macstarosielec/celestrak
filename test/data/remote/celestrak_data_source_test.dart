@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:io' show File, SocketException;
 
 import 'package:celestrak/celestrak.dart';
 import 'package:http/http.dart' as http;
@@ -60,10 +60,9 @@ Future<NetworkException> _catchNetwork(Future<void> Function() fn) async {
 
 void main() {
   setUpAll(() async {
-    final fixtureDir = '${Directory.current.path}/test/fixtures';
     _issOmmFixture =
-        await File('$fixtureDir/iss_25544_omm.json').readAsString();
-    _issTleFixture = await File('$fixtureDir/iss_25544.tle').readAsString();
+        await File('test/fixtures/iss_25544_omm.json').readAsString();
+    _issTleFixture = await File('test/fixtures/iss_25544.tle').readAsString();
   });
 
   group('CelestrakDataSource — URI construction', () {
@@ -119,6 +118,42 @@ void main() {
       await source.fetchByNoradId(25544);
 
       expect(captured!.scheme, equals('https'));
+    });
+
+    test('pre-existing query parameters in baseUrl are preserved and merged',
+        () async {
+      Uri? captured;
+      // baseUrl already has an apikey= parameter —
+      // the data source must keep it.
+      const baseWithKey = 'https://celestrak.test/gp.php?apikey=abc123';
+      final source = _source(
+        (request) async {
+          captured = request.url;
+          return http.Response(_issOmmFixture, 200);
+        },
+        baseUrl: baseWithKey,
+      );
+
+      await source.fetchByNoradId(25544);
+
+      expect(captured, isNotNull);
+      expect(captured!.queryParameters['apikey'], equals('abc123'));
+      expect(captured!.queryParameters['CATNR'], equals('25544'));
+      expect(captured!.queryParameters['FORMAT'], equals('JSON'));
+    });
+
+    test('http:// baseUrl propagates ArgumentError from transport', () async {
+      // HttpTransport enforces HTTPS (NFR-7); a non-HTTPS URI raises
+      // ArgumentError before any network call is made.
+      final source = _source(
+        (_) async => http.Response(_issOmmFixture, 200),
+        baseUrl: 'http://celestrak.test/gp.php',
+      );
+
+      await expectLater(
+        source.fetchByNoradId(25544),
+        throwsA(isA<ArgumentError>()),
+      );
     });
   });
 
