@@ -12,12 +12,10 @@ import 'package:celestrak/src/network/http_transport.dart';
 
 /// Base URL for the CelesTrak GP catalog API.
 ///
-/// Despite the `SOCRATES/` path segment, this is the standard CelesTrak GP
-/// catalog endpoint for individual object lookup by NORAD catalog number
-/// (`CATNR=`). It is **not** the SOCRATES conjunction report tool. The path is
-/// intentional and matches the URL published in the CelesTrak GP API
-/// documentation: https://celestrak.org/SOCRATES/query/gp.php
-const String kCelestrakBaseUrl = 'https://celestrak.org/SOCRATES/query/gp.php';
+/// Endpoint for individual object lookup by NORAD catalog number (`CATNR=`),
+/// as published in the CelesTrak GP API documentation:
+/// https://celestrak.org/NORAD/elements/gp.php
+const String kCelestrakBaseUrl = 'https://celestrak.org/NORAD/elements/gp.php';
 
 /// Sentinel text returned by CelesTrak when a NORAD ID is not in the catalog.
 const String kNotFoundSentinel = 'No GP data found';
