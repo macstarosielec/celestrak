@@ -15,8 +15,7 @@ import 'package:celestrak/src/network/http_transport.dart';
 /// Endpoint for individual object lookup by NORAD catalog number (`CATNR=`),
 /// as published in the CelesTrak GP API documentation:
 /// https://celestrak.org/NORAD/elements/gp.php
-const String kCelestrakBaseUrl =
-    'https://celestrak.org/NORAD/elements/gp.php';
+const String kCelestrakBaseUrl = 'https://celestrak.org/NORAD/elements/gp.php';
 
 /// Sentinel text returned by CelesTrak when a NORAD ID is not in the catalog.
 const String kNotFoundSentinel = 'No GP data found';
