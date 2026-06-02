@@ -18,11 +18,10 @@
 ///   configurable `defaultStaleThreshold`.
 library;
 
+export 'src/client/celestrak_client.dart';
 export 'src/data/local/cache_key_builder.dart';
 export 'src/data/parsers/omm_parser.dart';
 export 'src/data/parsers/tle_omm_stitcher.dart';
-export 'src/data/remote/celestrak_data_source.dart';
-export 'src/data/tle_repository_impl.dart';
 export 'src/domain/clock.dart';
 export 'src/domain/enums.dart';
 export 'src/domain/failures.dart';
