@@ -82,7 +82,8 @@ final class CelestrakClient {
   /// - [defaultTtl] — cache time-to-live (default 2 hours, FR-12).
   /// - [defaultFormat] — wire format for remote requests.
   /// - [timeout] — per-attempt HTTP deadline.
-  /// - [maxRetries] — maximum number of retry attempts (including the first).
+  /// - [maxRetries] — total number of attempts (1 initial + up to
+  ///   `maxRetries − 1` retries). Must be at least 1.
   /// - [staleThreshold] — epoch age beyond which data is considered stale.
   /// - [clock] — injectable time source for TTL and staleness.
   CelestrakClient({
@@ -105,12 +106,49 @@ final class CelestrakClient {
           ownsClient: true,
         );
 
+  /// Private initialising constructor. Ownership tracking is expressed only
+  /// here; external callers cannot set [ownsClient].
+  CelestrakClient._init({
+    required http.Client httpClient,
+    required CacheStore cacheStore,
+    required Duration defaultTtl,
+    required CelestrakFormat defaultFormat,
+    required Duration timeout,
+    required int maxRetries,
+    required Duration staleThreshold,
+    required Clock clock,
+    required bool ownsClient,
+  })  : _defaultTtl = defaultTtl,
+        _defaultFormat = defaultFormat,
+        _timeout = timeout,
+        _maxRetries = _checkedMaxRetries(maxRetries),
+        _staleness = StalenessChecker(
+          clock: clock,
+          staleThreshold: staleThreshold,
+        ),
+        _ownsClient = ownsClient,
+        _httpClient = httpClient,
+        _repository = TleRepositoryImpl(
+          dataSource: CelestrakDataSource(
+            transport: HttpTransport(
+              client: httpClient,
+              maxAttempts: maxRetries,
+              timeout: timeout,
+            ),
+          ),
+          cacheStore: cacheStore,
+          clock: clock,
+        );
+
   /// Creates a [CelestrakClient] with a caller-supplied [CacheStore] and
   /// `http.Client`.
   ///
   /// The client does **not** close [httpClient] on [dispose]. The caller is
   /// responsible for managing the lifecycle of both [httpClient] and
   /// [cacheStore].
+  ///
+  /// [maxRetries] is the total number of attempts (1 initial + up to
+  /// `maxRetries − 1` retries). Must be at least 1.
   CelestrakClient.withStore({
     required http.Client httpClient,
     required CacheStore cacheStore,
@@ -132,42 +170,28 @@ final class CelestrakClient {
           ownsClient: false,
         );
 
-  /// Private initialising constructor. Ownership tracking is expressed only
-  /// here; external callers cannot set [ownsClient].
-  CelestrakClient._init({
-    required http.Client httpClient,
-    required CacheStore cacheStore,
-    required Duration defaultTtl,
-    required CelestrakFormat defaultFormat,
-    required Duration timeout,
-    required int maxRetries,
-    required Duration staleThreshold,
-    required Clock clock,
-    required bool ownsClient,
-  })  : _defaultTtl = defaultTtl,
-        _defaultFormat = defaultFormat,
-        _staleness = StalenessChecker(
-          clock: clock,
-          staleThreshold: staleThreshold,
-        ),
-        _ownsClient = ownsClient,
-        _httpClient = httpClient,
-        _repository = TleRepositoryImpl(
-          dataSource: CelestrakDataSource(
-            transport: HttpTransport(
-              client: httpClient,
-              maxAttempts: maxRetries,
-              timeout: timeout,
-            ),
-          ),
-          cacheStore: cacheStore,
-          clock: clock,
-        );
+  /// Validates [maxRetries] and returns it unchanged, or throws
+  /// [ArgumentError].
+  ///
+  /// Used in the initializer list so validation fires before any field or
+  /// subobject is constructed.
+  static int _checkedMaxRetries(int maxRetries) {
+    if (maxRetries < 1) {
+      throw ArgumentError.value(
+        maxRetries,
+        'maxRetries',
+        'maxRetries must be at least 1 (got $maxRetries)',
+      );
+    }
+    return maxRetries;
+  }
 
   final TleRepository _repository;
   final http.Client _httpClient;
   final Duration _defaultTtl;
   final CelestrakFormat _defaultFormat;
+  final Duration _timeout;
+  final int _maxRetries;
   final StalenessChecker _staleness;
   final bool _ownsClient;
 
@@ -176,6 +200,12 @@ final class CelestrakClient {
 
   /// Default wire format for remote requests.
   CelestrakFormat get defaultFormat => _defaultFormat;
+
+  /// Per-attempt HTTP deadline.
+  Duration get timeout => _timeout;
+
+  /// Total number of attempts (1 initial + up to [maxRetries] − 1 retries).
+  int get maxRetries => _maxRetries;
 
   /// Staleness threshold used when calling [isStale].
   Duration get staleThreshold => _staleness.staleThreshold;

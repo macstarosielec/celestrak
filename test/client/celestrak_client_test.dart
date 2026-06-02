@@ -34,6 +34,7 @@ CelestrakClient _client(
   Duration defaultTtl = const Duration(hours: 2),
   CelestrakFormat defaultFormat = CelestrakFormat.omm,
   Duration staleThreshold = const Duration(days: 3),
+  Duration timeout = kDefaultTimeout,
 }) {
   final effectiveClock = clock ?? FakeClock(DateTime.utc(2026, 6, 1, 14));
   final effectiveStore = store ?? MemoryCacheStore();
@@ -56,6 +57,7 @@ CelestrakClient _client(
     staleThreshold: staleThreshold,
     clock: effectiveClock,
     maxRetries: maxRetries,
+    timeout: timeout,
   );
 }
 
@@ -156,6 +158,50 @@ void main() {
       );
 
       expect(client.staleThreshold, equals(const Duration(hours: 12)));
+    });
+
+    test('timeout defaults to kDefaultTimeout', () {
+      final client = _client((_) async => http.Response('', 200));
+
+      expect(client.timeout, equals(kDefaultTimeout));
+    });
+
+    test('custom timeout is preserved', () {
+      final client = _client(
+        (_) async => http.Response('', 200),
+        timeout: const Duration(seconds: 5),
+      );
+
+      expect(client.timeout, equals(const Duration(seconds: 5)));
+    });
+
+    test('maxRetries defaults to kDefaultMaxAttempts', () {
+      final client = _client(
+        (_) async => http.Response('', 200),
+        maxRetries: kDefaultMaxAttempts,
+      );
+
+      expect(client.maxRetries, equals(kDefaultMaxAttempts));
+    });
+
+    test('custom maxRetries is preserved', () {
+      final client = _client(
+        (_) async => http.Response('', 200),
+        maxRetries: 3,
+      );
+
+      expect(client.maxRetries, equals(3));
+    });
+
+    test('maxRetries: 0 throws ArgumentError', () {
+      expect(
+        () => CelestrakClient.withStore(
+          httpClient: http.Client(),
+          cacheStore: MemoryCacheStore(),
+          maxRetries: 0,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
     });
   });
 
@@ -390,6 +436,46 @@ void main() {
         client.fetchByNoradId(0),
         throwsA(isA<ArgumentError>()),
       );
+    });
+  });
+
+  // ── maxRetries behaviour ──────────────────────────────────────────────────
+
+  group('CelestrakClient — maxRetries behaviour', () {
+    test('maxRetries:3 results in exactly 3 HTTP attempts on 503', () async {
+      var calls = 0;
+      final client = _client(
+        (_) async {
+          calls++;
+          return http.Response('server error', 503);
+        },
+        maxRetries: 3,
+      );
+
+      await expectLater(
+        client.fetchByNoradId(25544),
+        throwsA(isA<NetworkException>()),
+      );
+
+      expect(calls, equals(3));
+    });
+
+    test('maxRetries:1 results in exactly 1 HTTP attempt on 503', () async {
+      var calls = 0;
+      final client = _client(
+        (_) async {
+          calls++;
+          return http.Response('server error', 503);
+        },
+        maxRetries: 1,
+      );
+
+      await expectLater(
+        client.fetchByNoradId(25544),
+        throwsA(isA<NetworkException>()),
+      );
+
+      expect(calls, equals(1));
     });
   });
 

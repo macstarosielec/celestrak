@@ -50,22 +50,31 @@ final class FileCacheStore implements CacheStore {
     DateTime writtenAt,
   ) async {
     await directory.create(recursive: true);
-    // Atomic write: write .ts first so that a crash between the two renames
-    // leaves .bin absent (read() returns null) rather than stale .ts paired
-    // with new .bin (FR-15).
+    // Two-phase rename write: write both .tmp files first, then rename.
+    //
+    // Rename order: .bin first, .ts second.
+    // read() checks .bin then .ts. A crash between the two renames leaves
+    // .bin present but .ts absent — read() returns null (cache miss).
+    // This is safer than the reverse order, which would leave a .ts with no
+    // .bin and force a spurious stale-age read on the next age() call.
+    //
+    // Note: rename() is atomic on POSIX when source and destination share the
+    // same directory. On Windows rename() is not atomic; cache writes may
+    // produce a torn entry on power loss. Callers should treat a cache miss
+    // as a normal condition (FR-15/NFR-9).
     final tmpData = File('${_dataPath(key)}.tmp');
     final tmpTs = File('${_tsPath(key)}.tmp');
     try {
-      await tmpTs.writeAsString(writtenAt.toIso8601String());
       await tmpData.writeAsBytes(bytes);
-      await tmpTs.rename(_tsPath(key));
+      await tmpTs.writeAsString(writtenAt.toIso8601String());
       await tmpData.rename(_dataPath(key));
+      await tmpTs.rename(_tsPath(key));
     } catch (_) {
       // Clean up any surviving .tmp files on partial failure.
       for (final tmp in [tmpData, tmpTs]) {
         try {
-          if (tmp.existsSync()) await tmp.delete();
-        } on Exception {
+          await tmp.delete();
+        } on FileSystemException {
           // Best-effort cleanup; ignore secondary errors.
         }
       }
@@ -94,7 +103,7 @@ final class FileCacheStore implements CacheStore {
     // Processing by stem ensures both .bin and .ts are always removed together,
     // preventing orphaned .ts files from returning stale age() values.
     final stems = <String>{};
-    for (final entity in directory.listSync()) {
+    await for (final entity in directory.list()) {
       if (entity is! File) continue;
       final name = entity.uri.pathSegments.last;
       final String? stem;
