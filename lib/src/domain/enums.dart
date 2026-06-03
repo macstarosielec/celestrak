@@ -38,7 +38,8 @@ enum CelestrakFormat {
 /// A named CelesTrak satellite group, mapping to the `GROUP` query key.
 ///
 /// Pass a value to `fetchCategory` to retrieve all objects in that group.
-/// For groups not covered by this enum use `fetchCategoryByGroup(String)`.
+/// Groups not covered by this enum are not yet supported; file a feature
+/// request if you need unlisted groups.
 ///
 /// The mapping between enum values and CelesTrak group strings is tested
 /// against fixture data in the test suite.
@@ -75,9 +76,9 @@ enum SatelliteCategory {
   ///
   /// This value targets the Cosmos 2251 / Iridium 33 collision debris, which
   /// is the largest single tracked debris population on CelesTrak. It does
-  /// **not** represent all catalogued debris. For other debris groups (e.g.
-  /// Fengyun 1C, Iridium 33) use `fetchCategoryByGroup` with the
-  /// corresponding CelesTrak group string.
+  /// **not** represent all catalogued debris. Other debris groups (e.g.
+  /// Fengyun 1C, Iridium 33) are not yet exposed; additional enum values may
+  /// be added in a future release.
   cosmos2251Debris,
 
   /// All active payloads in the catalog.

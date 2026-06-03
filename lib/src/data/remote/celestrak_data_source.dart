@@ -87,6 +87,53 @@ final class CelestrakDataSource {
     return body;
   }
 
+  /// Fetches raw orbital data for a satellite group by CelesTrak group string.
+  ///
+  /// Builds a `gp.php?GROUP=<group>&FORMAT=<format>` URI (uppercase query
+  /// keys, per the CelesTrak API contract — FR-2), issues an HTTPS GET,
+  /// and returns the response body verbatim.
+  ///
+  /// Throws [SatelliteNotFoundException] when the response body equals the
+  /// CelesTrak not-found sentinel `"No GP data found"` (case-sensitive),
+  /// indicating the group name is unknown to CelesTrak. A sentinel `noradId`
+  /// of 0 is used; callers should inspect the exception message for the group
+  /// name.
+  ///
+  /// Throws [NetworkException] on transport failures (propagated from
+  /// [HttpTransport] without wrapping — FR-23).
+  ///
+  /// Throws [ArgumentError] if [group] is empty.
+  Future<String> fetchByGroup(
+    String group, {
+    CelestrakFormat format = CelestrakFormat.omm,
+  }) async {
+    if (group.isEmpty) {
+      throw ArgumentError.value(
+        group,
+        'group',
+        'group must not be empty',
+      );
+    }
+
+    final uri = _buildUri(
+      queryKey: 'GROUP',
+      queryValue: group,
+      format: format,
+    );
+
+    final body = await _transport.get(uri);
+
+    if (_isNotFound(body)) {
+      throw SatelliteNotFoundException(
+        'No GP data found for group "$group"',
+        noradId: 0,
+        uri: uri,
+      );
+    }
+
+    return body;
+  }
+
   /// Builds a CelesTrak GP API [Uri] for the given query key/value and format.
   ///
   /// Query parameter names are uppercase (`CATNR`, `FORMAT`) per the API spec.

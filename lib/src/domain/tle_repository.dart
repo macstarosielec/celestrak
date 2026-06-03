@@ -59,6 +59,37 @@ abstract interface class TleRepository {
     CelestrakFormat format,
   });
 
+  /// Fetches all [SatelliteTle] records for a [SatelliteCategory].
+  ///
+  /// Uses `GROUP=<category.group>` as the CelesTrak query key (FR-2).
+  /// Each category maps to its own cache key so different categories do
+  /// not share cached payloads (FR-12).
+  ///
+  /// Returns a cached list (with [TleSource.local]) when one exists and
+  /// its age is within [ttl]. Otherwise fetches from the remote source,
+  /// caches the raw payload, and returns records stamped with
+  /// [TleSource.celestrak].
+  ///
+  /// When [allowStale] is `true` and the network request fails, returns
+  /// a stale cached entry if one exists (FR-17 partial).
+  ///
+  /// Throws [NetworkException] on transport failure when no usable cached
+  /// entry is available or [allowStale] is `false`.
+  Future<List<SatelliteTle>> fetchCategory(
+    SatelliteCategory category, {
+    CelestrakFormat format,
+    Duration ttl,
+    bool allowStale,
+  });
+
+  /// Returns the current cache age for the [category] entry.
+  ///
+  /// Returns `null` when no cache entry exists for this category.
+  Future<Duration?> categoryAge(
+    SatelliteCategory category, {
+    CelestrakFormat format,
+  });
+
   /// Removes all cache entries, or only those matching [keyPrefix].
   Future<void> clearCache({String? keyPrefix});
 }
