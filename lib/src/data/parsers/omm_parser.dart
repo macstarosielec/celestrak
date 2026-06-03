@@ -28,10 +28,10 @@ class OmmParser {
       objectName: _optionalString(json, 'OBJECT_NAME'),
       objectId: _optionalString(json, 'OBJECT_ID'),
       epoch: _epoch(json, 'EPOCH'),
-      centerName: _string(json, 'CENTER_NAME'),
-      refFrame: _string(json, 'REF_FRAME'),
-      timeSystem: _string(json, 'TIME_SYSTEM'),
-      meanElementTheory: _string(json, 'MEAN_ELEMENT_THEORY'),
+      centerName: _stringOrDefault(json, 'CENTER_NAME', 'EARTH'),
+      refFrame: _stringOrDefault(json, 'REF_FRAME', 'TEME'),
+      timeSystem: _stringOrDefault(json, 'TIME_SYSTEM', 'UTC'),
+      meanElementTheory: _stringOrDefault(json, 'MEAN_ELEMENT_THEORY', 'SGP4'),
       meanMotion: _double(json, 'MEAN_MOTION'),
       eccentricity: _double(json, 'ECCENTRICITY'),
       inclination: _double(json, 'INCLINATION'),
@@ -65,6 +65,15 @@ Object _required(Map<String, dynamic> json, String key) {
 
 String _string(Map<String, dynamic> json, String key) =>
     _required(json, key).toString();
+
+String _stringOrDefault(
+  Map<String, dynamic> json,
+  String key,
+  String fallback,
+) {
+  final value = json[key];
+  return value?.toString() ?? fallback;
+}
 
 int _int(Map<String, dynamic> json, String key) {
   final value = _required(json, key);
