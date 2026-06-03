@@ -90,6 +90,43 @@ abstract interface class TleRepository {
     CelestrakFormat format,
   });
 
+  /// Fetches all [SatelliteTle] records whose name contains [name].
+  ///
+  /// Uses `NAME=<name>` as the CelesTrak query key (FR-3). The [name] string
+  /// is passed verbatim to the API and CelesTrak performs a case-insensitive
+  /// substring match on `OBJECT_NAME`.
+  ///
+  /// Returns an empty list when CelesTrak reports no matching records
+  /// (FR-3, US-5). This is the sole case where an empty list is a valid
+  /// result; it is never thrown as an exception.
+  ///
+  /// Returns a cached list (with [TleSource.local]) when one exists and
+  /// its age is within [ttl]. Otherwise fetches from the remote source,
+  /// caches the raw payload, and returns records stamped with
+  /// [TleSource.celestrak].
+  ///
+  /// When [allowStale] is `true` and the network request fails, returns
+  /// a stale cached entry if one exists (FR-17 partial).
+  ///
+  /// Throws [NetworkException] on transport failure when no usable cached
+  /// entry is available or [allowStale] is `false`.
+  ///
+  /// Throws [ArgumentError] if [name] is empty.
+  Future<List<SatelliteTle>> fetchByName(
+    String name, {
+    CelestrakFormat format,
+    Duration ttl,
+    bool allowStale,
+  });
+
+  /// Returns the current cache age for the entry keyed to [name].
+  ///
+  /// Returns `null` when no cache entry exists for this name string.
+  Future<Duration?> nameAge(
+    String name, {
+    CelestrakFormat format,
+  });
+
   /// Fetches all [SatelliteTle] records for an arbitrary CelesTrak group
   /// string.
   ///

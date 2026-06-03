@@ -411,4 +411,87 @@ void main() {
       expect(callCount, equals(1));
     });
   });
+
+  group('CelestrakDataSource — fetchByName', () {
+    test('builds NAME= and FORMAT= with uppercase keys for OMM format',
+        () async {
+      Uri? captured;
+      final source = _source((request) async {
+        captured = request.url;
+        return http.Response(_issOmmFixture, 200);
+      });
+
+      await source.fetchByName('ISS');
+
+      expect(captured, isNotNull);
+      expect(captured!.queryParameters['NAME'], equals('ISS'));
+      expect(captured!.queryParameters['FORMAT'], equals('JSON'));
+    });
+
+    test('builds FORMAT=TLE for CelestrakFormat.tle', () async {
+      Uri? captured;
+      final source = _source((request) async {
+        captured = request.url;
+        return http.Response(_issTleFixture, 200);
+      });
+
+      await source.fetchByName('ISS', format: CelestrakFormat.tle);
+
+      expect(captured!.queryParameters['FORMAT'], equals('TLE'));
+    });
+
+    test('returns empty string when server returns sentinel (FR-3)', () async {
+      final source = _source(
+        (_) async => http.Response('No GP data found', 200),
+      );
+
+      final result = await source.fetchByName('NONEXISTENT');
+
+      expect(result, equals(''));
+    });
+
+    test('returns body verbatim on a successful match', () async {
+      final source = _source(
+        (_) async => http.Response(_issOmmFixture, 200),
+      );
+
+      final result = await source.fetchByName('ISS');
+
+      expect(result, equals(_issOmmFixture));
+    });
+
+    test('throws ArgumentError for empty name', () async {
+      final source = _source(
+        (_) async => http.Response(_issOmmFixture, 200),
+      );
+
+      await expectLater(
+        source.fetchByName(''),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('throws ArgumentError for whitespace-only name', () async {
+      final source = _source(
+        (_) async => http.Response(_issOmmFixture, 200),
+      );
+
+      await expectLater(
+        source.fetchByName('   '),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('propagates NetworkException on transport error', () async {
+      final source = _source(
+        (_) async => http.Response('server error', 503),
+        maxAttempts: 1,
+      );
+
+      await expectLater(
+        source.fetchByName('ISS'),
+        throwsA(isA<NetworkException>()),
+      );
+    });
+  });
 }

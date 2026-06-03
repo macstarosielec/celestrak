@@ -192,6 +192,54 @@ final class TleRepositoryImpl implements TleRepository {
   }
 
   @override
+  Future<List<SatelliteTle>> fetchByName(
+    String name, {
+    CelestrakFormat format = CelestrakFormat.omm,
+    Duration ttl = kDefaultTtl,
+    bool allowStale = false,
+  }) async {
+    if (name.trim().isEmpty) {
+      throw ArgumentError.value(
+        name,
+        'name',
+        'name must not be empty or whitespace-only',
+      );
+    }
+    final key = CacheKeyBuilder.forName(name, format: format);
+    final now = _clock.now;
+    final cacheAge = await _cacheStore.age(key, now);
+    final isFresh = cacheAge != null && cacheAge < ttl;
+
+    if (isFresh) {
+      return _readNameFromCache(name, format, key, now);
+    }
+
+    try {
+      return await _fetchAndCacheName(name, format, key, now);
+    } on OmmParseException {
+      // Parse errors indicate a corrupt remote payload, not a transient
+      // network failure; never mask them with a stale cache fallback.
+      rethrow;
+    } on TleParseException {
+      rethrow;
+    } on Exception {
+      if (allowStale && cacheAge != null) {
+        return _readNameFromCache(name, format, key, now);
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Duration?> nameAge(
+    String name, {
+    CelestrakFormat format = CelestrakFormat.omm,
+  }) async {
+    final key = CacheKeyBuilder.forName(name, format: format);
+    return _cacheStore.age(key, _clock.now);
+  }
+
+  @override
   Future<void> clearCache({String? keyPrefix}) =>
       _cacheStore.clear(keyPrefix: keyPrefix);
 
@@ -531,6 +579,99 @@ final class TleRepositoryImpl implements TleRepository {
           format: CelestrakFormat.tle,
         );
         await _cacheStore.write(key, utf8.encode(body), now);
+        return _parseCategoryTle(body, fetchedAt: now, fromCache: false);
+    }
+  }
+
+  /// Reads a cached name payload and parses it into a list of [SatelliteTle]
+  /// records stamped with [TleSource.local].
+  ///
+  /// An empty cached payload (stored after a no-match response) returns `[]`.
+  Future<List<SatelliteTle>> _readNameFromCache(
+    String name,
+    CelestrakFormat format,
+    String key,
+    DateTime now,
+  ) async {
+    final bytes = await _cacheStore.read(key);
+    if (bytes == null) {
+      return _fetchAndCacheName(name, format, key, now);
+    }
+    final body = utf8.decode(bytes);
+    if (body.isEmpty) return [];
+
+    switch (format) {
+      case CelestrakFormat.omm:
+        final tleKey = CacheKeyBuilder.forName(
+          name,
+          format: CelestrakFormat.tle,
+        );
+        final tleBytes = await _cacheStore.read(tleKey);
+        final tleBody = tleBytes != null ? utf8.decode(tleBytes) : '';
+        return _parseCategoryOmm(
+          body,
+          tleBody: tleBody,
+          fetchedAt: now,
+          fromCache: true,
+        );
+      case CelestrakFormat.tle:
+        return _parseCategoryTle(body, fetchedAt: now, fromCache: true);
+    }
+  }
+
+  /// Fetches a name payload from [CelestrakDataSource], caches the raw
+  /// bytes, parses into a list, and returns records stamped with
+  /// [TleSource.celestrak].
+  ///
+  /// Stores an empty payload when the remote returns no match (FR-3) so the
+  /// cache key exists and subsequent calls within TTL short-circuit without
+  /// hitting the network.
+  Future<List<SatelliteTle>> _fetchAndCacheName(
+    String name,
+    CelestrakFormat format,
+    String key,
+    DateTime now,
+  ) async {
+    switch (format) {
+      case CelestrakFormat.omm:
+        final ommBody = await _dataSource.fetchByName(
+          name,
+          format: CelestrakFormat.omm,
+        );
+        await _cacheStore.write(key, utf8.encode(ommBody), now);
+
+        // No match — return empty list without attempting the TLE stitch.
+        if (ommBody.isEmpty) return [];
+
+        final tleKey = CacheKeyBuilder.forName(
+          name,
+          format: CelestrakFormat.tle,
+        );
+        String tleBody;
+        try {
+          tleBody = await _dataSource.fetchByName(
+            name,
+            format: CelestrakFormat.tle,
+          );
+          await _cacheStore.write(tleKey, utf8.encode(tleBody), now);
+        } on CelestrakException {
+          tleBody = '';
+        }
+
+        return _parseCategoryOmm(
+          ommBody,
+          tleBody: tleBody,
+          fetchedAt: now,
+          fromCache: false,
+        );
+
+      case CelestrakFormat.tle:
+        final body = await _dataSource.fetchByName(
+          name,
+          format: CelestrakFormat.tle,
+        );
+        await _cacheStore.write(key, utf8.encode(body), now);
+        if (body.isEmpty) return [];
         return _parseCategoryTle(body, fetchedAt: now, fromCache: false);
     }
   }

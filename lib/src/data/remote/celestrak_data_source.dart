@@ -87,6 +87,47 @@ final class CelestrakDataSource {
     return body;
   }
 
+  /// Fetches raw orbital data for satellites matching a name substring.
+  ///
+  /// Builds a `gp.php?NAME=<name>&FORMAT=<format>` URI (uppercase query
+  /// keys, per the CelesTrak API contract — FR-3), issues an HTTPS GET,
+  /// and returns the response body verbatim.
+  ///
+  /// Returns the empty string when the response body equals the CelesTrak
+  /// not-found sentinel `"No GP data found"` (case-sensitive). Callers
+  /// should treat an empty string as a zero-result response (FR-3, US-5).
+  ///
+  /// Throws [NetworkException] on transport failures (propagated from
+  /// [HttpTransport] without wrapping — FR-23).
+  ///
+  /// Throws [ArgumentError] if [name] is empty.
+  Future<String> fetchByName(
+    String name, {
+    CelestrakFormat format = CelestrakFormat.omm,
+  }) async {
+    if (name.trim().isEmpty) {
+      throw ArgumentError.value(
+        name,
+        'name',
+        'name must not be empty or whitespace-only',
+      );
+    }
+
+    final uri = _buildUri(
+      queryKey: 'NAME',
+      queryValue: name,
+      format: format,
+    );
+
+    final body = await _transport.get(uri);
+
+    // No-match for NAME= queries → return empty string so callers can
+    // map this to an empty list (FR-3, US-5) rather than an exception.
+    if (_isNotFound(body)) return '';
+
+    return body;
+  }
+
   /// Fetches raw orbital data for a satellite group by CelesTrak group string.
   ///
   /// Builds a `gp.php?GROUP=<group>&FORMAT=<format>` URI (uppercase query
