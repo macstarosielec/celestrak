@@ -150,6 +150,48 @@ final class TleRepositoryImpl implements TleRepository {
   }
 
   @override
+  Future<List<SatelliteTle>> fetchCategoryByGroup(
+    String group, {
+    CelestrakFormat format = CelestrakFormat.omm,
+    Duration ttl = kDefaultTtl,
+    bool allowStale = false,
+  }) async {
+    if (group.isEmpty) {
+      throw ArgumentError.value(group, 'group', 'group must not be empty');
+    }
+    final key = CacheKeyBuilder.forGroup(group, format: format);
+    final now = _clock.now;
+    final cacheAge = await _cacheStore.age(key, now);
+    final isFresh = cacheAge != null && cacheAge < ttl;
+
+    if (isFresh) {
+      return _readGroupFromCache(group, format, key, now);
+    }
+
+    try {
+      return await _fetchAndCacheGroup(group, format, key, now);
+    } on SatelliteNotFoundException {
+      // Not-found is never a transient network error; always propagate.
+      rethrow;
+    } on Exception {
+      if (allowStale && cacheAge != null) {
+        // Network failed but a stale entry exists — return it (FR-17).
+        return _readGroupFromCache(group, format, key, now);
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Duration?> groupAge(
+    String group, {
+    CelestrakFormat format = CelestrakFormat.omm,
+  }) async {
+    final key = CacheKeyBuilder.forGroup(group, format: format);
+    return _cacheStore.age(key, _clock.now);
+  }
+
+  @override
   Future<void> clearCache({String? keyPrefix}) =>
       _cacheStore.clear(keyPrefix: keyPrefix);
 
@@ -405,6 +447,92 @@ final class TleRepositoryImpl implements TleRepository {
       return records.map((r) => r.copyWith(source: TleSource.local)).toList();
     }
     return records;
+  }
+
+  /// Reads a cached group payload and parses it into a list of [SatelliteTle]
+  /// records stamped with [TleSource.local].
+  Future<List<SatelliteTle>> _readGroupFromCache(
+    String group,
+    CelestrakFormat format,
+    String key,
+    DateTime now,
+  ) async {
+    final bytes = await _cacheStore.read(key);
+    if (bytes == null) {
+      return _fetchAndCacheGroup(group, format, key, now);
+    }
+    final body = utf8.decode(bytes);
+
+    switch (format) {
+      case CelestrakFormat.omm:
+        final tleKey = CacheKeyBuilder.forGroup(
+          group,
+          format: CelestrakFormat.tle,
+        );
+        final tleBytes = await _cacheStore.read(tleKey);
+        final tleBody = tleBytes != null ? utf8.decode(tleBytes) : '';
+        return _parseCategoryOmm(
+          body,
+          tleBody: tleBody,
+          fetchedAt: now,
+          fromCache: true,
+        );
+      case CelestrakFormat.tle:
+        return _parseCategoryTle(body, fetchedAt: now, fromCache: true);
+    }
+  }
+
+  /// Fetches a group payload from [CelestrakDataSource], caches the raw
+  /// bytes, parses into a list, and returns records stamped with
+  /// [TleSource.celestrak].
+  ///
+  /// For [CelestrakFormat.omm], the group TLE body is fetched once and cached
+  /// under the TLE-format key so the OMM stitch (ADR-3) avoids per-record
+  /// HTTP calls.
+  Future<List<SatelliteTle>> _fetchAndCacheGroup(
+    String group,
+    CelestrakFormat format,
+    String key,
+    DateTime now,
+  ) async {
+    switch (format) {
+      case CelestrakFormat.omm:
+        final ommBody = await _dataSource.fetchByGroup(
+          group,
+          format: CelestrakFormat.omm,
+        );
+        await _cacheStore.write(key, utf8.encode(ommBody), now);
+
+        final tleKey = CacheKeyBuilder.forGroup(
+          group,
+          format: CelestrakFormat.tle,
+        );
+        String tleBody;
+        try {
+          tleBody = await _dataSource.fetchByGroup(
+            group,
+            format: CelestrakFormat.tle,
+          );
+          await _cacheStore.write(tleKey, utf8.encode(tleBody), now);
+        } on CelestrakException {
+          tleBody = '';
+        }
+
+        return _parseCategoryOmm(
+          ommBody,
+          tleBody: tleBody,
+          fetchedAt: now,
+          fromCache: false,
+        );
+
+      case CelestrakFormat.tle:
+        final body = await _dataSource.fetchByGroup(
+          group,
+          format: CelestrakFormat.tle,
+        );
+        await _cacheStore.write(key, utf8.encode(body), now);
+        return _parseCategoryTle(body, fetchedAt: now, fromCache: false);
+    }
   }
 
   /// Returns the TLE body for [noradId], either from cache or from the

@@ -90,6 +90,48 @@ abstract interface class TleRepository {
     CelestrakFormat format,
   });
 
+  /// Fetches all [SatelliteTle] records for an arbitrary CelesTrak group
+  /// string.
+  ///
+  /// Uses `GROUP=<group>` as the CelesTrak query key (FR-21). The [group]
+  /// string is passed through verbatim to the API — no validation against
+  /// [SatelliteCategory] is performed.
+  ///
+  /// Each group value maps to its own cache key so different groups do not
+  /// share cached payloads (FR-12).
+  ///
+  /// Returns a cached list (with [TleSource.local]) when one exists and
+  /// its age is within [ttl]. Otherwise fetches from the remote source,
+  /// caches the raw payload, and returns records stamped with
+  /// [TleSource.celestrak].
+  ///
+  /// When [allowStale] is `true` and the network request fails, returns
+  /// a stale cached entry if one exists (FR-17 partial).
+  ///
+  /// Throws [SatelliteNotFoundException] when the group name is not known to
+  /// CelesTrak. This exception is never masked by the `allowStale` fallback.
+  ///
+  /// Throws [NetworkException] on transport failure when no usable cached
+  /// entry is available or [allowStale] is `false`.
+  ///
+  /// Throws [ArgumentError] if [group] is empty.
+  Future<List<SatelliteTle>> fetchCategoryByGroup(
+    String group, {
+    CelestrakFormat format,
+    Duration ttl,
+    bool allowStale,
+  });
+
+  /// Returns the current cache age for the entry keyed to [group].
+  ///
+  /// Returns `null` when no cache entry exists for this group string.
+  ///
+  /// [format] defaults to [CelestrakFormat.omm].
+  Future<Duration?> groupAge(
+    String group, {
+    CelestrakFormat format,
+  });
+
   /// Removes all cache entries, or only those matching [keyPrefix].
   Future<void> clearCache({String? keyPrefix});
 }

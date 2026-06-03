@@ -277,6 +277,59 @@ final class CelestrakClient {
         allowStale: allowStale,
       );
 
+  /// Fetches all [SatelliteTle] records for an arbitrary CelesTrak group
+  /// string.
+  ///
+  /// The [group] string is passed through verbatim to the CelesTrak `GROUP=`
+  /// query parameter — no validation against [SatelliteCategory] is performed
+  /// (FR-21, US-11).
+  ///
+  /// Returns a cached list (with [TleSource.local]) when one exists and
+  /// its age is within [ttl] (defaults to [defaultTtl]).
+  ///
+  /// Otherwise, fetches from CelesTrak in [format] (defaults to
+  /// [defaultFormat]), caches the raw payload, and returns records stamped
+  /// with [TleSource.celestrak].
+  ///
+  /// Each group string maps to its own cache key so fetching one group does
+  /// not evict another (FR-12).
+  ///
+  /// When [allowStale] is `true` and the network request fails, the
+  /// repository returns a stale cached list if one exists.
+  ///
+  /// Throws [SatelliteNotFoundException] when the group name is not known to
+  /// CelesTrak. This exception is never masked by the `allowStale` fallback.
+  ///
+  /// Throws [NetworkException] on transport failure when no cached entry is
+  /// available or [allowStale] is `false`.
+  ///
+  /// Throws [ArgumentError] if [group] is empty.
+  Future<List<SatelliteTle>> fetchCategoryByGroup(
+    String group, {
+    CelestrakFormat? format,
+    Duration? ttl,
+    bool allowStale = false,
+  }) =>
+      _repository.fetchCategoryByGroup(
+        group,
+        format: format ?? _defaultFormat,
+        ttl: ttl ?? _defaultTtl,
+        allowStale: allowStale,
+      );
+
+  /// Returns the current cache age for the entry keyed to [group].
+  ///
+  /// Returns `null` when no cache entry exists for the group string in
+  /// [format] (defaults to [defaultFormat]).
+  Future<Duration?> groupAge(
+    String group, {
+    CelestrakFormat? format,
+  }) =>
+      _repository.groupAge(
+        group,
+        format: format ?? _defaultFormat,
+      );
+
   /// Returns the current cache age for [category].
   ///
   /// Returns `null` when no cache entry exists for the category in [format]
