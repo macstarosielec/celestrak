@@ -240,6 +240,64 @@ final class TleRepositoryImpl implements TleRepository {
   }
 
   @override
+  Future<List<SatelliteTle>> fetchByIntlDesignator(
+    String intlDesignator, {
+    CelestrakFormat format = CelestrakFormat.omm,
+    Duration ttl = kDefaultTtl,
+    bool allowStale = false,
+  }) async {
+    // Validate before touching the cache. ArgumentError extends Error (not
+    // Exception), so it bypasses the allowStale fallback by language
+    // semantics — no explicit rethrow guard is needed.
+    if (!CelestrakDataSource.isValidIntlDesignator(intlDesignator)) {
+      throw ArgumentError.value(
+        intlDesignator,
+        'intlDesignator',
+        'International designator must match YYYY-NNNP… '
+            '(e.g. "1998-067A"). Got: "$intlDesignator"',
+      );
+    }
+    final key = CacheKeyBuilder.forIntlDesignator(
+      intlDesignator,
+      format: format,
+    );
+    final now = _clock.now;
+    final cacheAge = await _cacheStore.age(key, now);
+    final isFresh = cacheAge != null && cacheAge < ttl;
+
+    if (isFresh) {
+      return _readIntlDesFromCache(intlDesignator, format, key, now);
+    }
+
+    try {
+      return await _fetchAndCacheIntlDes(intlDesignator, format, key, now);
+    } on OmmParseException {
+      // Parse errors indicate a corrupt remote payload, not a transient
+      // network failure; never mask them with a stale cache fallback.
+      rethrow;
+    } on TleParseException {
+      rethrow;
+    } on Exception {
+      if (allowStale && cacheAge != null) {
+        return _readIntlDesFromCache(intlDesignator, format, key, now);
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Duration?> intlDesignatorAge(
+    String intlDesignator, {
+    CelestrakFormat format = CelestrakFormat.omm,
+  }) async {
+    final key = CacheKeyBuilder.forIntlDesignator(
+      intlDesignator,
+      format: format,
+    );
+    return _cacheStore.age(key, _clock.now);
+  }
+
+  @override
   Future<void> clearCache({String? keyPrefix}) =>
       _cacheStore.clear(keyPrefix: keyPrefix);
 
@@ -668,6 +726,94 @@ final class TleRepositoryImpl implements TleRepository {
       case CelestrakFormat.tle:
         final body = await _dataSource.fetchByName(
           name,
+          format: CelestrakFormat.tle,
+        );
+        await _cacheStore.write(key, utf8.encode(body), now);
+        if (body.isEmpty) return [];
+        return _parseCategoryTle(body, fetchedAt: now, fromCache: false);
+    }
+  }
+
+  /// Reads a cached INTDES payload and parses it into a list of [SatelliteTle]
+  /// records stamped with [TleSource.local].
+  ///
+  /// An empty cached payload (stored after a no-match response) returns `[]`.
+  Future<List<SatelliteTle>> _readIntlDesFromCache(
+    String intlDesignator,
+    CelestrakFormat format,
+    String key,
+    DateTime now,
+  ) async {
+    final bytes = await _cacheStore.read(key);
+    if (bytes == null) {
+      return _fetchAndCacheIntlDes(intlDesignator, format, key, now);
+    }
+    final body = utf8.decode(bytes);
+    if (body.isEmpty) return [];
+
+    switch (format) {
+      case CelestrakFormat.omm:
+        final tleKey = CacheKeyBuilder.forIntlDesignator(
+          intlDesignator,
+          format: CelestrakFormat.tle,
+        );
+        final tleBytes = await _cacheStore.read(tleKey);
+        final tleBody = tleBytes != null ? utf8.decode(tleBytes) : '';
+        return _parseCategoryOmm(
+          body,
+          tleBody: tleBody,
+          fetchedAt: now,
+          fromCache: true,
+        );
+      case CelestrakFormat.tle:
+        return _parseCategoryTle(body, fetchedAt: now, fromCache: true);
+    }
+  }
+
+  /// Fetches an INTDES payload from [CelestrakDataSource], caches the raw
+  /// bytes, parses into a list, and returns records stamped with
+  /// [TleSource.celestrak].
+  Future<List<SatelliteTle>> _fetchAndCacheIntlDes(
+    String intlDesignator,
+    CelestrakFormat format,
+    String key,
+    DateTime now,
+  ) async {
+    switch (format) {
+      case CelestrakFormat.omm:
+        final ommBody = await _dataSource.fetchByIntlDesignator(
+          intlDesignator,
+          format: CelestrakFormat.omm,
+        );
+        await _cacheStore.write(key, utf8.encode(ommBody), now);
+
+        if (ommBody.isEmpty) return [];
+
+        final tleKey = CacheKeyBuilder.forIntlDesignator(
+          intlDesignator,
+          format: CelestrakFormat.tle,
+        );
+        String tleBody;
+        try {
+          tleBody = await _dataSource.fetchByIntlDesignator(
+            intlDesignator,
+            format: CelestrakFormat.tle,
+          );
+          await _cacheStore.write(tleKey, utf8.encode(tleBody), now);
+        } on CelestrakException {
+          tleBody = '';
+        }
+
+        return _parseCategoryOmm(
+          ommBody,
+          tleBody: tleBody,
+          fetchedAt: now,
+          fromCache: false,
+        );
+
+      case CelestrakFormat.tle:
+        final body = await _dataSource.fetchByIntlDesignator(
+          intlDesignator,
           format: CelestrakFormat.tle,
         );
         await _cacheStore.write(key, utf8.encode(body), now);
