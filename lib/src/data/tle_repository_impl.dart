@@ -14,11 +14,11 @@ import 'package:celestrak/src/data/parsers/tle_omm_stitcher.dart';
 import 'package:celestrak/src/data/parsers/tle_parser.dart';
 import 'package:celestrak/src/data/remote/celestrak_data_source.dart';
 import 'package:celestrak/src/domain/clock.dart';
+import 'package:celestrak/src/domain/constants.dart';
 import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
 import 'package:celestrak/src/domain/tle_repository.dart';
-import 'package:celestrak/src/network/http_transport.dart' show kDefaultTtl;
 
 /// Production [TleRepository] that combines a [CacheStore], a
 /// [CelestrakDataSource], and a [Clock] to deliver the full
@@ -111,6 +111,41 @@ final class TleRepositoryImpl implements TleRepository {
     CelestrakFormat format = CelestrakFormat.omm,
   }) async {
     final key = CacheKeyBuilder.forNoradId(noradId, format: format);
+    return _cacheStore.age(key, _clock.now);
+  }
+
+  @override
+  Future<List<SatelliteTle>> fetchCategory(
+    SatelliteCategory category, {
+    CelestrakFormat format = CelestrakFormat.omm,
+    Duration ttl = kDefaultTtl,
+    bool allowStale = false,
+  }) async {
+    final key = CacheKeyBuilder.forCategory(category, format: format);
+    final now = _clock.now;
+    final cacheAge = await _cacheStore.age(key, now);
+    final isFresh = cacheAge != null && cacheAge < ttl;
+
+    if (isFresh) {
+      return _readCategoryFromCache(category, format, key, now);
+    }
+
+    try {
+      return await _fetchAndCacheCategory(category, format, key, now);
+    } on Exception {
+      if (allowStale && cacheAge != null) {
+        return _readCategoryFromCache(category, format, key, now);
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Duration?> categoryAge(
+    SatelliteCategory category, {
+    CelestrakFormat format = CelestrakFormat.omm,
+  }) async {
+    final key = CacheKeyBuilder.forCategory(category, format: format);
     return _cacheStore.age(key, _clock.now);
   }
 
@@ -238,6 +273,138 @@ final class TleRepositoryImpl implements TleRepository {
       ),
     );
     return fromCache ? match.copyWith(source: TleSource.local) : match;
+  }
+
+  /// Reads a cached category payload and parses it into a list of
+  /// [SatelliteTle] records stamped with [TleSource.local].
+  Future<List<SatelliteTle>> _readCategoryFromCache(
+    SatelliteCategory category,
+    CelestrakFormat format,
+    String key,
+    DateTime now,
+  ) async {
+    final bytes = await _cacheStore.read(key);
+    if (bytes == null) {
+      return _fetchAndCacheCategory(category, format, key, now);
+    }
+    final body = utf8.decode(bytes);
+
+    switch (format) {
+      case CelestrakFormat.omm:
+        // Read the group TLE body from its own cache key for the stitch.
+        final tleKey = CacheKeyBuilder.forCategory(
+          category,
+          format: CelestrakFormat.tle,
+        );
+        final tleBytes = await _cacheStore.read(tleKey);
+        final tleBody = tleBytes != null ? utf8.decode(tleBytes) : '';
+        return _parseCategoryOmm(
+          body,
+          tleBody: tleBody,
+          fetchedAt: now,
+          fromCache: true,
+        );
+      case CelestrakFormat.tle:
+        return _parseCategoryTle(body, fetchedAt: now, fromCache: true);
+    }
+  }
+
+  /// Fetches a category payload from [CelestrakDataSource], caches the raw
+  /// bytes, parses into a list, and returns records stamped with
+  /// [TleSource.celestrak].
+  ///
+  /// For [CelestrakFormat.omm], the group TLE body is fetched once and cached
+  /// under the TLE-format key so the OMM stitch (ADR-3) avoids per-record
+  /// HTTP calls.
+  Future<List<SatelliteTle>> _fetchAndCacheCategory(
+    SatelliteCategory category,
+    CelestrakFormat format,
+    String key,
+    DateTime now,
+  ) async {
+    switch (format) {
+      case CelestrakFormat.omm:
+        // Fetch the OMM group body and cache it.
+        final ommBody = await _dataSource.fetchByGroup(
+          category.group,
+          format: CelestrakFormat.omm,
+        );
+        await _cacheStore.write(key, utf8.encode(ommBody), now);
+
+        // Fetch the TLE group body once for the stitch and cache it
+        // separately so subsequent OMM cache hits can stitch without I/O.
+        final tleKey = CacheKeyBuilder.forCategory(
+          category,
+          format: CelestrakFormat.tle,
+        );
+        String tleBody;
+        try {
+          tleBody = await _dataSource.fetchByGroup(
+            category.group,
+            format: CelestrakFormat.tle,
+          );
+          await _cacheStore.write(tleKey, utf8.encode(tleBody), now);
+        } on CelestrakException {
+          // Transport failure or empty group for the supplementary TLE fetch —
+          // fall back to empty string so the OMM stitch proceeds with blank
+          // TLE lines rather than failing the whole category request.
+          tleBody = '';
+        }
+
+        return _parseCategoryOmm(
+          ommBody,
+          tleBody: tleBody,
+          fetchedAt: now,
+          fromCache: false,
+        );
+
+      case CelestrakFormat.tle:
+        final body = await _dataSource.fetchByGroup(
+          category.group,
+          format: CelestrakFormat.tle,
+        );
+        await _cacheStore.write(key, utf8.encode(body), now);
+        return _parseCategoryTle(body, fetchedAt: now, fromCache: false);
+    }
+  }
+
+  /// Parses a multi-record OMM JSON body into a list of [SatelliteTle].
+  ///
+  /// [tleBody] is the full group TLE text (fetched or cached once at the
+  /// caller level) used for the ADR-3 dual-format stitch. Each record's lines
+  /// are looked up by `noradCatId` from this in-memory string — no additional
+  /// HTTP calls are made.
+  List<SatelliteTle> _parseCategoryOmm(
+    String ommBody, {
+    required String tleBody,
+    required DateTime fetchedAt,
+    required bool fromCache,
+  }) {
+    final jsonList =
+        (jsonDecode(ommBody) as List<dynamic>).cast<Map<String, dynamic>>();
+
+    final results = <SatelliteTle>[];
+    for (final ommJson in jsonList) {
+      final omm = _ommParser.parse(ommJson);
+      final tle = _stitcher.stitch(omm, tleBody, fetchedAt: fetchedAt);
+      results.add(
+        fromCache ? tle.copyWith(source: TleSource.local) : tle,
+      );
+    }
+    return results;
+  }
+
+  /// Parses a multi-record TLE body into a list of [SatelliteTle].
+  List<SatelliteTle> _parseCategoryTle(
+    String body, {
+    required DateTime fetchedAt,
+    required bool fromCache,
+  }) {
+    final records = _tleParser.parseAll(body, fetchedAt: fetchedAt);
+    if (fromCache) {
+      return records.map((r) => r.copyWith(source: TleSource.local)).toList();
+    }
+    return records;
   }
 
   /// Returns the TLE body for [noradId], either from cache or from the

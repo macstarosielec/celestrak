@@ -36,8 +36,10 @@ import 'package:http/http.dart' as http;
 
 /// High-level facade for the CelesTrak GP API.
 ///
-/// Handles the full cache → TTL → fetch → parse → stamp pipeline behind a
-/// single method, [fetchByNoradId].
+/// Handles the full cache → TTL → fetch → parse → stamp pipeline for both
+/// individual objects ([fetchByNoradId]) and named satellite groups
+/// ([fetchCategory]). Cache age can be queried via [cacheAge] and
+/// [categoryAge].
 ///
 /// ## Lifecycle
 ///
@@ -243,6 +245,49 @@ final class CelestrakClient {
         format: format ?? _defaultFormat,
         ttl: ttl ?? _defaultTtl,
         allowStale: allowStale,
+      );
+
+  /// Fetches all [SatelliteTle] records for a [SatelliteCategory].
+  ///
+  /// Returns a cached list (with [TleSource.local]) when one exists and
+  /// its age is within [ttl] (defaults to [defaultTtl]).
+  ///
+  /// Otherwise, fetches from CelesTrak in [format] (defaults to
+  /// [defaultFormat]), caches the raw payload, and returns records stamped
+  /// with [TleSource.celestrak].
+  ///
+  /// Each category maps to its own cache key so fetching one category does
+  /// not evict another (FR-2, FR-12).
+  ///
+  /// When [allowStale] is `true` and the network request fails, the
+  /// repository returns a stale cached list if one exists.
+  ///
+  /// Throws [NetworkException] on transport failure when no cached entry is
+  /// available or [allowStale] is `false`.
+  Future<List<SatelliteTle>> fetchCategory(
+    SatelliteCategory category, {
+    CelestrakFormat? format,
+    Duration? ttl,
+    bool allowStale = false,
+  }) =>
+      _repository.fetchCategory(
+        category,
+        format: format ?? _defaultFormat,
+        ttl: ttl ?? _defaultTtl,
+        allowStale: allowStale,
+      );
+
+  /// Returns the current cache age for [category].
+  ///
+  /// Returns `null` when no cache entry exists for the category in [format]
+  /// (defaults to [defaultFormat]).
+  Future<Duration?> categoryAge(
+    SatelliteCategory category, {
+    CelestrakFormat? format,
+  }) =>
+      _repository.categoryAge(
+        category,
+        format: format ?? _defaultFormat,
       );
 
   /// Returns the current cache age for the entry keyed to [noradId].
