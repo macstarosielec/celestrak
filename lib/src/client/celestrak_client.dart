@@ -317,6 +317,54 @@ final class CelestrakClient {
         allowStale: allowStale,
       );
 
+  /// Fetches all [SatelliteTle] records whose name contains [name].
+  ///
+  /// Uses `NAME=<name>` as the CelesTrak query key. CelesTrak performs a
+  /// case-insensitive substring match on `OBJECT_NAME`.
+  ///
+  /// Returns an **empty list** when no satellites match — this is the
+  /// expected result, not an error (FR-3, US-5).
+  ///
+  /// Returns a cached list (with [TleSource.local]) when one exists and
+  /// its age is within [ttl] (defaults to [defaultTtl]).
+  ///
+  /// Otherwise, fetches from CelesTrak in [format] (defaults to
+  /// [defaultFormat]), caches the raw payload, and returns records stamped
+  /// with [TleSource.celestrak].
+  ///
+  /// When [allowStale] is `true` and the network request fails, the
+  /// repository returns a stale cached list if one exists.
+  ///
+  /// Throws [NetworkException] on transport failure when no cached entry is
+  /// available or [allowStale] is `false`.
+  ///
+  /// Throws [ArgumentError] if [name] is empty.
+  Future<List<SatelliteTle>> fetchByName(
+    String name, {
+    CelestrakFormat? format,
+    Duration? ttl,
+    bool allowStale = false,
+  }) =>
+      _repository.fetchByName(
+        name,
+        format: format ?? _defaultFormat,
+        ttl: ttl ?? _defaultTtl,
+        allowStale: allowStale,
+      );
+
+  /// Returns the current cache age for the entry keyed to [name].
+  ///
+  /// Returns `null` when no cache entry exists for [name] in [format]
+  /// (defaults to [defaultFormat]).
+  Future<Duration?> nameAge(
+    String name, {
+    CelestrakFormat? format,
+  }) =>
+      _repository.nameAge(
+        name,
+        format: format ?? _defaultFormat,
+      );
+
   /// Returns the current cache age for the entry keyed to [group].
   ///
   /// Returns `null` when no cache entry exists for the group string in

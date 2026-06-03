@@ -72,7 +72,15 @@ final class CacheKeyBuilder {
   /// Builds a key for a named satellite query.
   ///
   /// [name] is normalised to lower-case; whitespace is collapsed and replaced
-  /// with underscores so the key remains filename-safe.
+  /// with underscores so the key remains filename-safe. Special characters
+  /// outside `[a-z0-9:_\-~]` are stripped.
+  ///
+  /// **Collision caveat:** names that differ only in stripped characters map to
+  /// the same cache key. For example, `"ISS (ZARYA)"` and `"ISS ZARYA"` both
+  /// produce `"name:iss_zarya~..."`. CelesTrak performs a substring match, so
+  /// these queries may return different results — callers who query both names
+  /// within the same TTL window will receive the first call's cached response
+  /// for the second call.
   static String forName(
     String name, {
     required CelestrakFormat format,

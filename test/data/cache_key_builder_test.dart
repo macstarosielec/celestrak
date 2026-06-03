@@ -92,6 +92,23 @@ void main() {
       );
       expect(key, matches(RegExp(r'^[A-Za-z0-9:_\-~]+$')));
     });
+
+    test(
+        'names differing only in stripped characters produce the same key '
+        '(documented collision — see forName doc comment)', () {
+      // "ISS (ZARYA)" and "ISS ZARYA" both normalise to "iss_zarya";
+      // callers must be aware that CelesTrak may return different results
+      // for these two queries despite them sharing a cache key.
+      final k1 = CacheKeyBuilder.forName(
+        'ISS (ZARYA)',
+        format: CelestrakFormat.omm,
+      );
+      final k2 = CacheKeyBuilder.forName(
+        'ISS ZARYA',
+        format: CelestrakFormat.omm,
+      );
+      expect(k1, equals(k2));
+    });
   });
 
   group('CacheKeyBuilder.forCategory', () {
