@@ -522,6 +522,10 @@ final class TleRepositoryImpl implements TleRepository {
   /// caller level) used for the ADR-3 dual-format stitch. Each record's lines
   /// are looked up by `noradCatId` from this in-memory string — no additional
   /// HTTP calls are made.
+  ///
+  /// Records are decoded lazily via [OmmParser.parseAllLazy] (NFR-6): each
+  /// `Omm` is stitched and added to the result list in-turn so the decoded
+  /// JSON entries can be garbage-collected as iteration proceeds.
   List<SatelliteTle> _parseCategoryOmm(
     String ommBody, {
     required String tleBody,
@@ -532,8 +536,7 @@ final class TleRepositoryImpl implements TleRepository {
         (jsonDecode(ommBody) as List<dynamic>).cast<Map<String, dynamic>>();
 
     final results = <SatelliteTle>[];
-    for (final ommJson in jsonList) {
-      final omm = _ommParser.parse(ommJson);
+    for (final omm in _ommParser.parseAllLazy(jsonList)) {
       final tle = _stitcher.stitch(omm, tleBody, fetchedAt: fetchedAt);
       results.add(
         fromCache ? tle.copyWith(source: TleSource.local) : tle,
@@ -543,12 +546,18 @@ final class TleRepositoryImpl implements TleRepository {
   }
 
   /// Parses a multi-record TLE body into a list of [SatelliteTle].
+  ///
+  /// Records are decoded lazily via [TleParser.parseAllLazy] (NFR-6): each
+  /// [SatelliteTle] is produced one-at-a-time, avoiding a full output list
+  /// in memory during iteration. The input line buffer is materialised upfront
+  /// for the multiple-of-3 guard; see [TleParser.parseAllLazy] for details.
   List<SatelliteTle> _parseCategoryTle(
     String body, {
     required DateTime fetchedAt,
     required bool fromCache,
   }) {
-    final records = _tleParser.parseAll(body, fetchedAt: fetchedAt);
+    final records =
+        _tleParser.parseAllLazy(body, fetchedAt: fetchedAt).toList();
     if (fromCache) {
       return records.map((r) => r.copyWith(source: TleSource.local)).toList();
     }
