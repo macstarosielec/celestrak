@@ -119,10 +119,16 @@ final class CelestrakDataSource {
       format: format,
     );
 
-    final body = await _transport.get(uri);
+    // CelesTrak returns 404 (or 200 + sentinel) when no satellite matches
+    // the name query.  Both map to an empty result (FR-3, US-5).
+    final String body;
+    try {
+      body = await _transport.get(uri);
+    } on NetworkException catch (e) {
+      if (e.statusCode == 404) return '';
+      rethrow;
+    }
 
-    // No-match for NAME= queries → return empty string so callers can
-    // map this to an empty list (FR-3, US-5) rather than an exception.
     if (_isNotFound(body)) return '';
 
     return body;

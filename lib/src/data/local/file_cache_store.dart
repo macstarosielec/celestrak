@@ -20,11 +20,16 @@ final class FileCacheStore implements CacheStore {
   /// The directory where cache files are stored.
   final Directory directory;
 
+  // Windows reserves ':' for drive-letter notation; replace with '-' so
+  // keys like 'norad:25544~fmt:omm~src:celestrak' are valid file names on
+  // all platforms.
+  static String _encode(String key) => key.replaceAll(':', '-');
+
   String _dataPath(String key) =>
-      '${directory.path}${Platform.pathSeparator}$key.bin';
+      '${directory.path}${Platform.pathSeparator}${_encode(key)}.bin';
 
   String _tsPath(String key) =>
-      '${directory.path}${Platform.pathSeparator}$key.ts';
+      '${directory.path}${Platform.pathSeparator}${_encode(key)}.ts';
 
   @override
   Future<Uint8List?> read(String key) async {
@@ -114,7 +119,9 @@ final class FileCacheStore implements CacheStore {
       } else {
         stem = null;
       }
-      if (stem != null && (keyPrefix == null || stem.startsWith(keyPrefix))) {
+      final encodedPrefix = keyPrefix != null ? _encode(keyPrefix) : null;
+      if (stem != null &&
+          (encodedPrefix == null || stem.startsWith(encodedPrefix))) {
         stems.add(stem);
       }
     }

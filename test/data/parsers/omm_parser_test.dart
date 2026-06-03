@@ -47,8 +47,23 @@ void main() {
     });
 
     test('throws OmmParseException on missing string field', () {
-      json.remove('CENTER_NAME');
+      // CENTER_NAME/REF_FRAME/TIME_SYSTEM/MEAN_ELEMENT_THEORY are optional
+      // (CelesTrak omits them); CLASSIFICATION_TYPE is still required.
+      json.remove('CLASSIFICATION_TYPE');
       expect(() => parser.parse(json), throwsA(isA<OmmParseException>()));
+    });
+
+    test('uses defaults when optional metadata fields are absent', () {
+      json
+        ..remove('CENTER_NAME')
+        ..remove('REF_FRAME')
+        ..remove('TIME_SYSTEM')
+        ..remove('MEAN_ELEMENT_THEORY');
+      final omm = parser.parse(json);
+      expect(omm.centerName, equals('EARTH'));
+      expect(omm.refFrame, equals('TEME'));
+      expect(omm.timeSystem, equals('UTC'));
+      expect(omm.meanElementTheory, equals('SGP4'));
     });
 
     test('throws OmmParseException on missing int field', () {
