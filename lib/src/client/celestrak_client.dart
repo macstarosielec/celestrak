@@ -352,6 +352,53 @@ final class CelestrakClient {
         allowStale: allowStale,
       );
 
+  /// Fetches all [SatelliteTle] records matching an international designator.
+  ///
+  /// Uses `INTDES=<intlDesignator>` as the CelesTrak query key (FR-4).
+  ///
+  /// Returns an **empty list** when no satellites match — this is the expected
+  /// result, not an error.
+  ///
+  /// Returns a cached list (with [TleSource.local]) when one exists and its
+  /// age is within [ttl] (defaults to [defaultTtl]).
+  ///
+  /// Otherwise, fetches from CelesTrak in [format] (defaults to
+  /// [defaultFormat]), caches the raw payload, and returns records stamped
+  /// with [TleSource.celestrak].
+  ///
+  /// When [allowStale] is `true` and the network request fails, the repository
+  /// returns a stale cached list if one exists.
+  ///
+  /// Throws [NetworkException] on transport failure when no cached entry is
+  /// available or [allowStale] is `false`.
+  ///
+  /// Throws [ArgumentError] when [intlDesignator] is malformed.
+  Future<List<SatelliteTle>> fetchByIntlDesignator(
+    String intlDesignator, {
+    CelestrakFormat? format,
+    Duration? ttl,
+    bool allowStale = false,
+  }) =>
+      _repository.fetchByIntlDesignator(
+        intlDesignator,
+        format: format ?? _defaultFormat,
+        ttl: ttl ?? _defaultTtl,
+        allowStale: allowStale,
+      );
+
+  /// Returns the current cache age for the entry keyed to [intlDesignator].
+  ///
+  /// Returns `null` when no cache entry exists for [intlDesignator] in
+  /// [format] (defaults to [defaultFormat]).
+  Future<Duration?> intlDesignatorAge(
+    String intlDesignator, {
+    CelestrakFormat? format,
+  }) =>
+      _repository.intlDesignatorAge(
+        intlDesignator,
+        format: format ?? _defaultFormat,
+      );
+
   /// Returns the current cache age for the entry keyed to [name].
   ///
   /// Returns `null` when no cache entry exists for [name] in [format]

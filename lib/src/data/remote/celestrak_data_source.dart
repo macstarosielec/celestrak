@@ -134,6 +134,52 @@ final class CelestrakDataSource {
     return body;
   }
 
+  /// Fetches raw orbital data for satellites matching an international
+  /// designator.
+  ///
+  /// Builds a `gp.php?INTDES=<intlDesignator>&FORMAT=<format>` URI (uppercase
+  /// query keys, per the CelesTrak API contract — FR-4), issues an HTTPS GET,
+  /// and returns the response body verbatim.
+  ///
+  /// Returns the empty string when the response body equals the CelesTrak
+  /// not-found sentinel `"No GP data found"` (case-sensitive). Callers should
+  /// treat an empty string as a zero-result response.
+  ///
+  /// International designators must match the pattern:
+  /// `YYYY-NNNP` where `YYYY` is a 4-digit launch year (1957–2999), `NNN` is
+  /// a 1–3 digit launch number, and `P` is a 1–3 letter piece identifier. The
+  /// year and number components may optionally be separated by a hyphen.
+  /// Leading/trailing whitespace is not permitted.
+  ///
+  /// Throws [ArgumentError] when [intlDesignator] is malformed.
+  ///
+  /// Throws [NetworkException] on transport failures (propagated from
+  /// [HttpTransport] without wrapping — FR-23).
+  Future<String> fetchByIntlDesignator(
+    String intlDesignator, {
+    CelestrakFormat format = CelestrakFormat.omm,
+  }) async {
+    final trimmed = _validateIntlDesignator(intlDesignator);
+
+    final uri = _buildUri(
+      queryKey: 'INTDES',
+      queryValue: trimmed,
+      format: format,
+    );
+
+    final String body;
+    try {
+      body = await _transport.get(uri);
+    } on NetworkException catch (e) {
+      if (e.statusCode == 404) return '';
+      rethrow;
+    }
+
+    if (_isNotFound(body)) return '';
+
+    return body;
+  }
+
   /// Fetches raw orbital data for a satellite group by CelesTrak group string.
   ///
   /// Builds a `gp.php?GROUP=<group>&FORMAT=<format>` URI (uppercase query
@@ -179,6 +225,54 @@ final class CelestrakDataSource {
     }
 
     return body;
+  }
+
+  /// Regex for international designators: 4-digit year (1957–2999), optional
+  /// hyphen, 1–3 digit launch number, 1–3 letter piece identifier.
+  ///
+  /// Allocated once as a static field to avoid per-call allocation.
+  static final _intlDesPattern =
+      RegExp(r'^(195[7-9]|19[6-9]\d|[2-9]\d{3})-?\d{1,3}[A-Za-z]{1,3}$');
+
+  /// Returns `true` when [value] is a structurally valid international
+  /// designator after trimming.
+  ///
+  /// Valid format: `YYYY-NNNP…` where `YYYY` is 1957–2999, `NNN` is 1–3
+  /// digits, and `P…` is 1–3 letters. The hyphen is optional.
+  ///
+  /// This method is provided for callers that need to validate a designator
+  /// before a cache read — before the value reaches [fetchByIntlDesignator].
+  static bool isValidIntlDesignator(String value) {
+    final trimmed = value.trim();
+    return trimmed.isNotEmpty && _intlDesPattern.hasMatch(trimmed);
+  }
+
+  /// Validates an international designator string and returns the trimmed form.
+  ///
+  /// Valid format: `YYYY-NNNP…` where:
+  /// - `YYYY` is a 4-digit year (1957–2999).
+  /// - `NNN` is 1–3 digits (launch number within year).
+  /// - `P…` is 1–3 letters (piece identifier).
+  ///
+  /// Leading/trailing whitespace is not accepted (the value after trimming must
+  /// not differ from the original — callers must pass a clean string).
+  ///
+  /// Throws [ArgumentError] when the designator does not match.
+  ///
+  /// Returns the trimmed designator string for callers to forward to the API.
+  String _validateIntlDesignator(String value) {
+    // Reject leading/trailing whitespace outright: a padded designator would
+    // produce a malformed URI query value if forwarded verbatim.
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || !_intlDesPattern.hasMatch(trimmed)) {
+      throw ArgumentError.value(
+        value,
+        'intlDesignator',
+        'International designator must match YYYY-NNNP… '
+            '(e.g. "1998-067A"). Got: "$value"',
+      );
+    }
+    return trimmed;
   }
 
   /// Builds a CelesTrak GP API [Uri] for the given query key/value and format.

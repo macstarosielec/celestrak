@@ -169,6 +169,42 @@ abstract interface class TleRepository {
     CelestrakFormat format,
   });
 
+  /// Fetches all [SatelliteTle] records matching an international designator.
+  ///
+  /// Uses `INTDES=<intlDesignator>` as the CelesTrak query key (FR-4). The
+  /// designator string is passed verbatim to the API.
+  ///
+  /// Returns an **empty list** when CelesTrak reports no matching records —
+  /// this is the expected result, not an error.
+  ///
+  /// Returns a cached list (with [TleSource.local]) when one exists and its
+  /// age is within [ttl]. Otherwise fetches from the remote source, caches
+  /// the raw payload, and returns records stamped with [TleSource.celestrak].
+  ///
+  /// When [allowStale] is `true` and the network request fails, returns a
+  /// stale cached entry if one exists (FR-17 partial).
+  ///
+  /// Throws [NetworkException] on transport failure when no usable cached
+  /// entry is available or [allowStale] is `false`.
+  ///
+  /// Throws [ArgumentError] when [intlDesignator] is malformed.
+  Future<List<SatelliteTle>> fetchByIntlDesignator(
+    String intlDesignator, {
+    CelestrakFormat format,
+    Duration ttl,
+    bool allowStale,
+  });
+
+  /// Returns the current cache age for the entry keyed to [intlDesignator].
+  ///
+  /// Returns `null` when no cache entry exists for this designator string.
+  ///
+  /// [format] defaults to [CelestrakFormat.omm].
+  Future<Duration?> intlDesignatorAge(
+    String intlDesignator, {
+    CelestrakFormat format,
+  });
+
   /// Removes all cache entries, or only those matching [keyPrefix].
   Future<void> clearCache({String? keyPrefix});
 }

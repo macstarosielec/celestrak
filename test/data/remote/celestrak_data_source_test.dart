@@ -16,6 +16,9 @@ late String _issOmmFixture;
 /// ISS TLE fixture, loaded once before the suite runs.
 late String _issTleFixture;
 
+/// INTDES OMM JSON fixture (1998-067A), loaded once before the suite runs.
+late String _intdesOmmFixture;
+
 /// Creates a [CelestrakDataSource] backed by a [MockClient] using [handler].
 ///
 /// [baseUrl] overrides the production endpoint so no real network calls occur.
@@ -64,6 +67,8 @@ void main() {
     _issOmmFixture =
         await File('test/fixtures/iss_25544_omm.json').readAsString();
     _issTleFixture = await File('test/fixtures/iss_25544.tle').readAsString();
+    _intdesOmmFixture =
+        await File('test/fixtures/intdes_1998_067a_omm.json').readAsString();
   });
 
   group('CelestrakDataSource — URI construction', () {
@@ -492,6 +497,151 @@ void main() {
         source.fetchByName('ISS'),
         throwsA(isA<NetworkException>()),
       );
+    });
+  });
+
+  group('CelestrakDataSource — fetchByIntlDesignator', () {
+    test('builds INTDES= with uppercase key for OMM format', () async {
+      Uri? captured;
+      final source = _source((request) async {
+        captured = request.url;
+        return http.Response(_intdesOmmFixture, 200);
+      });
+
+      await source.fetchByIntlDesignator('1998-067A');
+
+      expect(captured, isNotNull);
+      expect(captured!.queryParameters['INTDES'], equals('1998-067A'));
+      expect(captured!.queryParameters['FORMAT'], equals('JSON'));
+    });
+
+    test('INTDES key is uppercase — not "intdes"', () async {
+      Uri? captured;
+      final source = _source((request) async {
+        captured = request.url;
+        return http.Response(_intdesOmmFixture, 200);
+      });
+
+      await source.fetchByIntlDesignator('1998-067A');
+
+      expect(captured!.queryParameters.containsKey('INTDES'), isTrue);
+      expect(captured!.queryParameters.containsKey('intdes'), isFalse);
+    });
+
+    test('returns empty string when server returns sentinel', () async {
+      final source = _source(
+        (_) async => http.Response('No GP data found', 200),
+      );
+
+      final result = await source.fetchByIntlDesignator('1998-067A');
+
+      expect(result, equals(''));
+    });
+
+    test('returns empty string on 404 response', () async {
+      final source = _source(
+        (_) async => http.Response('not found', 404),
+      );
+
+      final result = await source.fetchByIntlDesignator('1998-067A');
+
+      expect(result, equals(''));
+    });
+
+    test('returns body verbatim on a successful match', () async {
+      final source = _source(
+        (_) async => http.Response(_intdesOmmFixture, 200),
+      );
+
+      final result = await source.fetchByIntlDesignator('1998-067A');
+
+      expect(result, equals(_intdesOmmFixture));
+    });
+
+    test('throws ArgumentError for empty designator', () async {
+      final source = _source(
+        (_) async => http.Response(_intdesOmmFixture, 200),
+      );
+
+      await expectLater(
+        source.fetchByIntlDesignator(''),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('throws ArgumentError for whitespace-only designator', () async {
+      final source = _source(
+        (_) async => http.Response(_intdesOmmFixture, 200),
+      );
+
+      await expectLater(
+        source.fetchByIntlDesignator('   '),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('ArgumentError.name is "intlDesignator"', () async {
+      final source = _source(
+        (_) async => http.Response(_intdesOmmFixture, 200),
+      );
+
+      await expectLater(
+        source.fetchByIntlDesignator('bad'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.name,
+            'name',
+            equals('intlDesignator'),
+          ),
+        ),
+      );
+    });
+
+    test('no network call is made when designator is invalid', () async {
+      var callCount = 0;
+      final source = _source((_) async {
+        callCount++;
+        return http.Response(_intdesOmmFixture, 200);
+      });
+
+      await expectLater(
+        source.fetchByIntlDesignator('bad'),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      expect(callCount, equals(0));
+    });
+
+    test('rejects year before 1957 (pre-space-age)', () async {
+      final source = _source(
+        (_) async => http.Response(_intdesOmmFixture, 200),
+      );
+
+      await expectLater(
+        source.fetchByIntlDesignator('1956-001A'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('accepts designator without hyphen (1998067A)', () async {
+      final source = _source(
+        (_) async => http.Response(_intdesOmmFixture, 200),
+      );
+
+      final result = await source.fetchByIntlDesignator('1998067A');
+
+      expect(result, equals(_intdesOmmFixture));
+    });
+
+    test('accepts lowercase piece letter (1998-067a)', () async {
+      final source = _source(
+        (_) async => http.Response(_intdesOmmFixture, 200),
+      );
+
+      // The regex allows [A-Za-z]; lowercase is accepted.
+      final result = await source.fetchByIntlDesignator('1998-067a');
+
+      expect(result, equals(_intdesOmmFixture));
     });
   });
 }
