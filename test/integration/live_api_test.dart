@@ -49,8 +49,11 @@ void _assertValidRecord(SatelliteTle s) {
 // ---------------------------------------------------------------------------
 
 void main() {
-  group('CelesTrak live API', () {
+  group(
+    'CelesTrak live API',
+    () {
     // ── fetchByNoradId ──────────────────────────────────────────────────────
+
 
     test(
       'fetchByNoradId returns ISS (25544)',
@@ -182,5 +185,9 @@ void main() {
       timeout: const Timeout(_timeout),
       tags: 'integration',
     );
-  });
+    },
+    // CelesTrak may reset connections under rapid successive requests;
+    // one retry avoids false negatives from transient network errors.
+    retry: 1,
+  );
 }
