@@ -13,6 +13,8 @@ import '../support/fixture_loader.dart';
 
 late String _nameIssOmmFixture;
 late String _nameIssTleFixture;
+late String _starlinkMultiOmmFixture;
+late String _starlinkMultiTleFixture;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -61,6 +63,10 @@ void main() {
   setUpAll(() async {
     _nameIssOmmFixture = await loadFixture('test/fixtures/name_iss_omm.json');
     _nameIssTleFixture = await loadFixture('test/fixtures/name_iss.txt');
+    _starlinkMultiOmmFixture =
+        await loadFixture('test/fixtures/starlink_multi_omm.json');
+    _starlinkMultiTleFixture =
+        await loadFixture('test/fixtures/starlink_multi.txt');
   });
 
   // ── Happy path ─────────────────────────────────────────────────────────────
@@ -473,6 +479,90 @@ void main() {
         format: CelestrakFormat.tle,
       );
 
+      for (final r in results) {
+        expect(r.omm, isNull);
+      }
+    });
+  });
+
+  // ── Multi-result fetchByName (P4 / RK-4) ─────────────────────────────────
+
+  group('CelestrakClient.fetchByName — multi-result (P4 RK-4)', () {
+    test('fetchByName returns multiple records when server returns >1 match',
+        () async {
+      final client = _client(
+        (_) async => http.Response(_starlinkMultiOmmFixture, 200),
+        tleHandler: (_) async => http.Response(_starlinkMultiTleFixture, 200),
+      );
+
+      final results = await client.fetchByName('STARLINK');
+
+      expect(results.length, greaterThan(1));
+    });
+
+    test('all records in multi-result carry expected noradIds', () async {
+      final client = _client(
+        (_) async => http.Response(_starlinkMultiOmmFixture, 200),
+        tleHandler: (_) async => http.Response(_starlinkMultiTleFixture, 200),
+      );
+
+      final results = await client.fetchByName('STARLINK');
+      final noradIds = results.map((r) => r.noradId).toList();
+
+      expect(noradIds, unorderedEquals([44713, 44714, 44715]));
+    });
+
+    test('multi-result cached — second call within TTL skips transport',
+        () async {
+      var calls = 0;
+      final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
+      final store = MemoryCacheStore();
+      final client = _client(
+        (_) async {
+          calls++;
+          return http.Response(_starlinkMultiOmmFixture, 200);
+        },
+        tleHandler: (_) async => http.Response(_starlinkMultiTleFixture, 200),
+        clock: clock,
+        store: store,
+      );
+
+      await client.fetchByName('STARLINK');
+      clock.advance(const Duration(minutes: 30));
+      final cached = await client.fetchByName('STARLINK');
+
+      expect(calls, equals(1));
+      expect(cached.length, greaterThan(1));
+    });
+
+    test('multi-result cache hit stamps source=local', () async {
+      final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
+      final store = MemoryCacheStore();
+      final client = _client(
+        (_) async => http.Response(_starlinkMultiOmmFixture, 200),
+        tleHandler: (_) async => http.Response(_starlinkMultiTleFixture, 200),
+        clock: clock,
+        store: store,
+      );
+
+      await client.fetchByName('STARLINK');
+      clock.advance(const Duration(minutes: 30));
+      final cached = await client.fetchByName('STARLINK');
+
+      for (final r in cached) {
+        expect(r.source, equals(TleSource.local));
+      }
+    });
+
+    test('multi-result TLE format returns records with null omm', () async {
+      final client = _client(
+        (_) async => http.Response(_starlinkMultiTleFixture, 200),
+        defaultFormat: CelestrakFormat.tle,
+      );
+
+      final results = await client.fetchByName('STARLINK');
+
+      expect(results.length, greaterThan(1));
       for (final r in results) {
         expect(r.omm, isNull);
       }
