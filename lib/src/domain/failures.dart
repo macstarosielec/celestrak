@@ -112,6 +112,69 @@ final class SatelliteNotFoundException extends CelestrakException {
   }
 }
 
+/// Thrown when Space-Track.org rejects the supplied credentials or the session
+/// has expired.
+///
+/// Space-Track returns HTTP 401 when the `identity`/`password` POST fails, and
+/// HTTP 403 when the session cookie is missing or expired on a data request.
+/// Both map to this exception so callers can handle authentication failures
+/// with a single pattern.
+///
+/// [statusCode] is the HTTP status code returned by the server.
+/// [uri] is the request URI that triggered the failure.
+final class AuthenticationException extends CelestrakException {
+  /// Creates an [AuthenticationException] describing [message].
+  const AuthenticationException(
+    super.message, {
+    required this.statusCode,
+    this.uri,
+  });
+
+  /// The HTTP status code returned by the server (401 or 403).
+  final int statusCode;
+
+  /// The URI that returned the authentication error.
+  final Uri? uri;
+
+  @override
+  String toString() {
+    final parts = <String>[
+      'AuthenticationException: $message',
+      'statusCode=$statusCode',
+    ];
+    if (uri != null) parts.add('uri=$uri');
+    return parts.join(', ');
+  }
+}
+
+/// Thrown when Space-Track.org returns HTTP 429 (Too Many Requests).
+///
+/// Space-Track enforces a rate limit of 30 requests per minute and 300
+/// requests per hour. Exceeding either limit causes the server to respond
+/// with 429. Callers should back off and retry after a delay.
+///
+/// [retryAfter] is parsed from the `Retry-After` response header when present.
+/// [uri] is the request URI that was throttled.
+final class RateLimitException extends CelestrakException {
+  /// Creates a [RateLimitException] describing [message].
+  const RateLimitException(super.message, {this.retryAfter, this.uri});
+
+  /// The duration to wait before retrying, parsed from the `Retry-After`
+  /// response header. `null` when the header was absent or could not be parsed.
+  final Duration? retryAfter;
+
+  /// The URI that returned the 429 response.
+  final Uri? uri;
+
+  @override
+  String toString() {
+    final parts = <String>['RateLimitException: $message'];
+    if (retryAfter != null) parts.add('retryAfter=${retryAfter!.inSeconds}s');
+    if (uri != null) parts.add('uri=$uri');
+    return parts.join(', ');
+  }
+}
+
 /// Thrown when a raw TLE string cannot be parsed into a `SatelliteTle`.
 ///
 /// [field] identifies the offending TLE line when the failure is specific

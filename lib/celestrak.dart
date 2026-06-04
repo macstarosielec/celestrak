@@ -9,10 +9,10 @@
 /// - `OmmParser` — parses CelesTrak OMM JSON into `Omm` values.
 /// - `SatelliteCategory`, `TleSource`, `CelestrakFormat` — enumerations for
 ///   category queries, record provenance, and wire format selection.
-/// - `CelestrakException` and subtypes (`NetworkException`,
-///   `OmmParseException`, `SatelliteNotFoundException`,
-///   `TleParseException`) — typed error hierarchy; no raw `http` or
-///   `dart:io` exception escapes the public API.
+/// - `CelestrakException` and subtypes (`AuthenticationException`,
+///   `NetworkException`, `OmmParseException`, `RateLimitException`,
+///   `SatelliteNotFoundException`, `TleParseException`) — typed error
+///   hierarchy; no raw `http` or `dart:io` exception escapes the public API.
 /// - `Clock` / `SystemClock` — injectable time source for TTL and staleness.
 /// - `StalenessChecker` — classifies orbital data freshness against a
 ///   configurable `defaultStaleThreshold`.
