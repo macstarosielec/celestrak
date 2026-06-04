@@ -18,15 +18,16 @@
 /// ## Usage
 ///
 /// ```dart
+/// final client = http.Client();
 /// final source = SpaceTrackDataSource(
-///   client: http.Client(),
+///   client: client,
 ///   identity: 'user@example.com',
 ///   password: 'secret',
 /// );
 /// try {
 ///   final json = await source.fetchByNoradId(25544);
 /// } finally {
-///   source.dispose();
+///   client.close(); // the caller owns the client and is responsible for closing it
 /// }
 /// ```
 ///
@@ -53,7 +54,7 @@ const String kSpaceTrackBaseUrl = 'https://www.space-track.org';
 /// Accepts a POST with `application/x-www-form-urlencoded` body containing
 /// `identity=<email>&password=<password>`. On success the server returns a
 /// `Set-Cookie` header; on failure it returns HTTP 401.
-const String kSpaceTrackLoginPath = '/ajaxauth/login';
+const String _kSpaceTrackLoginPath = '/ajaxauth/login';
 
 /// URL-encoded body template for the login POST.
 ///
@@ -66,14 +67,14 @@ const String _kSpaceTrackLoginBodyTemplate =
 /// Base path for the basic space-data API.
 ///
 /// Full GP query path:
-/// `{kSpaceTrackDataPath}/class/gp/NORAD_CAT_ID/<id>/format/json`
-const String kSpaceTrackDataPath = '/basicspacedata/query';
+/// `{_kSpaceTrackDataPath}/class/gp/NORAD_CAT_ID/<id>/format/json`
+const String _kSpaceTrackDataPath = '/basicspacedata/query';
 
 /// GP class path segment within the basic space-data API.
-const String kSpaceTrackGpClassPath = '/class/gp';
+const String _kSpaceTrackGpClassPath = '/class/gp';
 
 /// Format segment appended to every GP query.
-const String kSpaceTrackJsonFormat = '/format/json';
+const String _kSpaceTrackJsonFormat = '/format/json';
 
 /// Minimum interval between successive Space-Track API requests.
 ///
@@ -90,6 +91,11 @@ const Duration kSpaceTrackDefaultTimeout = Duration(seconds: 30);
 ///
 /// Handles the POST-login / cookie-session authentication flow and issues GP
 /// class queries for individual objects by NORAD catalog number.
+///
+/// **ADR-7 note.** ADR-7 describes a public `SpaceTrackClient` facade. This
+/// class is the data-layer component that will be wrapped by that facade; it
+/// is intentionally not exported from `lib/celestrak.dart` until the facade is
+/// ready (see CEL-47).
 ///
 /// **Rate limiting.** A minimum inter-request delay (`minRequestInterval`,
 /// default: 2 s) is enforced between successive data requests. The login call
@@ -141,7 +147,18 @@ final class SpaceTrackDataSource {
         _baseUrl = baseUrl,
         _minRequestInterval = minRequestInterval,
         _timeout = timeout,
-        _clock = clock;
+        _clock = clock {
+    final scheme = Uri.parse(baseUrl).scheme;
+    if (scheme != 'https') {
+      throw ArgumentError.value(
+        baseUrl,
+        'baseUrl',
+        'Only HTTPS base URLs are permitted; '
+            'got scheme "$scheme". '
+            'Credentials must not be transmitted in cleartext.',
+      );
+    }
+  }
 
   final http.Client _client;
   final String _identity;
@@ -177,7 +194,7 @@ final class SpaceTrackDataSource {
   /// Idempotent: calling [login] when already logged in re-authenticates
   /// (refreshes the session cookie) without error.
   Future<void> login() async {
-    final uri = Uri.parse('$_baseUrl$kSpaceTrackLoginPath');
+    final uri = Uri.parse('$_baseUrl$_kSpaceTrackLoginPath');
 
     final body = _kSpaceTrackLoginBodyTemplate
         .replaceFirst('{identity}', Uri.encodeQueryComponent(_identity))
@@ -215,12 +232,14 @@ final class SpaceTrackDataSource {
     } on NetworkException {
       rethrow;
     } on TimeoutException catch (e) {
+      _loggedIn = false;
       throw NetworkException(
         'Space-Track login timed out after $_timeout',
         uri: uri,
         cause: e,
       );
     } on SocketException catch (e) {
+      _loggedIn = false;
       throw NetworkException(
         'Space-Track login socket error: ${e.message}',
         uri: uri,
@@ -259,8 +278,8 @@ final class SpaceTrackDataSource {
     await _enforceRateLimit();
 
     final uri = Uri.parse(
-      '$_baseUrl$kSpaceTrackDataPath$kSpaceTrackGpClassPath'
-      '/NORAD_CAT_ID/$noradId$kSpaceTrackJsonFormat',
+      '$_baseUrl$_kSpaceTrackDataPath$_kSpaceTrackGpClassPath'
+      '/NORAD_CAT_ID/$noradId$_kSpaceTrackJsonFormat',
     );
 
     return _get(uri);
@@ -268,20 +287,23 @@ final class SpaceTrackDataSource {
 
   /// Enforces the minimum inter-request interval.
   ///
-  /// Snapshots the clock once at entry and records that timestamp as
-  /// [_lastRequestAt] — regardless of whether a sleep occurred — so that
-  /// successive calls measure the gap between *intended* issue times rather
-  /// than wall-clock drift introduced by the sleep itself.
+  /// Snapshots the clock once at entry and immediately records that timestamp
+  /// as [_lastRequestAt] — **before** any `await` — so that any concurrent
+  /// caller that enters this method during the suspension sees a recent
+  /// timestamp and sleeps for the correct remainder rather than bypassing the
+  /// throttle entirely.  Successive calls therefore measure the gap between
+  /// *intended* issue times rather than wall-clock drift introduced by the
+  /// sleep itself.
   Future<void> _enforceRateLimit() async {
     final now = _clock.now;
     final last = _lastRequestAt;
+    _lastRequestAt = now; // reserve the slot before any await
     if (last != null) {
       final elapsed = now.difference(last);
       if (elapsed < _minRequestInterval) {
         await Future<void>.delayed(_minRequestInterval - elapsed);
       }
     }
-    _lastRequestAt = now;
   }
 
   /// Issues an authenticated GET to [uri] and returns the response body.
@@ -303,6 +325,10 @@ final class SpaceTrackDataSource {
 
       if (response.statusCode == 429) {
         final retryAfterHeader = response.headers['retry-after'];
+        // RFC 7231 permits both an integer (delay-seconds) and an HTTP-date
+        // string in the Retry-After header.  Only the integer form is parsed
+        // here; HTTP-date values (e.g. "Wed, 21 Oct 2025 07:28:00 GMT") yield
+        // null, which is surfaced as retryAfter: null in RateLimitException.
         final retryAfterSeconds =
             retryAfterHeader != null ? int.tryParse(retryAfterHeader) : null;
         throw RateLimitException(

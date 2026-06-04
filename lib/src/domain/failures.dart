@@ -169,7 +169,8 @@ final class RateLimitException extends CelestrakException {
   @override
   String toString() {
     final parts = <String>['RateLimitException: $message'];
-    if (retryAfter != null) parts.add('retryAfter=${retryAfter!.inSeconds}s');
+    final r = retryAfter;
+    if (r != null) parts.add('retryAfter=${r.inSeconds}s');
     if (uri != null) parts.add('uri=$uri');
     return parts.join(', ');
   }
