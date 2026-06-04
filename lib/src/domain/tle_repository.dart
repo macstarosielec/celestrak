@@ -1,7 +1,7 @@
 /// Abstract repository interface for fetching satellite TLE records.
 ///
 /// Implementations orchestrate cache look-up, TTL expiry, remote fetch,
-/// parsing, and provenance stamping (FR-12, FR-17).
+/// parsing, and provenance stamping.
 library;
 
 import 'package:celestrak/src/domain/enums.dart';
@@ -12,14 +12,10 @@ import 'package:celestrak/src/domain/satellite_tle.dart';
 /// Contract for fetching [SatelliteTle] records with transparent caching.
 ///
 /// The repository hides the cache→TTL→fetch→parse→stamp pipeline from callers.
-/// A cache hit within the configured TTL incurs zero network calls (FR-12).
-/// When a fresh cache entry is absent the repository fetches from the remote
-/// source, parses the response, writes the raw payload to cache, and returns
-/// the fully stamped [SatelliteTle].
-///
-/// See also:
-/// - FR-12: cache-first lookup with TTL.
-/// - FR-17: `allowStale` fallback on network failure.
+/// A cache hit within the configured TTL incurs zero network calls. When a
+/// fresh cache entry is absent the repository fetches from the remote source,
+/// parses the response, writes the raw payload to cache, and returns the fully
+/// stamped [SatelliteTle].
 abstract interface class TleRepository {
   /// Fetches a [SatelliteTle] for [noradId].
   ///
@@ -31,11 +27,11 @@ abstract interface class TleRepository {
   /// [format] selects the wire format used for both remote fetching and
   /// cache key derivation.
   ///
-  /// [ttl] controls cache freshness. Defaults to 2 hours (FR-12).
+  /// [ttl] controls cache freshness. Defaults to 2 hours.
   ///
   /// When [allowStale] is `true` and the network request fails, the
   /// repository returns a stale cached entry (if present) rather than
-  /// re-throwing the exception (FR-17 partial).
+  /// re-throwing the exception.
   ///
   /// Throws [SatelliteNotFoundException] when the object is not in the
   /// CelesTrak catalog and no usable cache entry exists.
@@ -61,9 +57,9 @@ abstract interface class TleRepository {
 
   /// Fetches all [SatelliteTle] records for a [SatelliteCategory].
   ///
-  /// Uses `GROUP=<category.group>` as the CelesTrak query key (FR-2).
-  /// Each category maps to its own cache key so different categories do
-  /// not share cached payloads (FR-12).
+  /// Uses `GROUP=<category.group>` as the CelesTrak query key. Each category
+  /// maps to its own cache key so different categories do not share cached
+  /// payloads.
   ///
   /// Returns a cached list (with [TleSource.local]) when one exists and
   /// its age is within [ttl]. Otherwise fetches from the remote source,
@@ -71,7 +67,7 @@ abstract interface class TleRepository {
   /// [TleSource.celestrak].
   ///
   /// When [allowStale] is `true` and the network request fails, returns
-  /// a stale cached entry if one exists (FR-17 partial).
+  /// a stale cached entry if one exists.
   ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.
@@ -92,13 +88,13 @@ abstract interface class TleRepository {
 
   /// Fetches all [SatelliteTle] records whose name contains [name].
   ///
-  /// Uses `NAME=<name>` as the CelesTrak query key (FR-3). The [name] string
-  /// is passed verbatim to the API and CelesTrak performs a case-insensitive
+  /// Uses `NAME=<name>` as the CelesTrak query key. The [name] string is
+  /// passed verbatim to the API and CelesTrak performs a case-insensitive
   /// substring match on `OBJECT_NAME`.
   ///
-  /// Returns an empty list when CelesTrak reports no matching records
-  /// (FR-3, US-5). This is the sole case where an empty list is a valid
-  /// result; it is never thrown as an exception.
+  /// Returns an empty list when CelesTrak reports no matching records. This
+  /// is the sole case where an empty list is a valid result; it is never
+  /// thrown as an exception.
   ///
   /// Returns a cached list (with [TleSource.local]) when one exists and
   /// its age is within [ttl]. Otherwise fetches from the remote source,
@@ -106,7 +102,7 @@ abstract interface class TleRepository {
   /// [TleSource.celestrak].
   ///
   /// When [allowStale] is `true` and the network request fails, returns
-  /// a stale cached entry if one exists (FR-17 partial).
+  /// a stale cached entry if one exists.
   ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.
@@ -130,12 +126,12 @@ abstract interface class TleRepository {
   /// Fetches all [SatelliteTle] records for an arbitrary CelesTrak group
   /// string.
   ///
-  /// Uses `GROUP=<group>` as the CelesTrak query key (FR-21). The [group]
-  /// string is passed through verbatim to the API — no validation against
+  /// Uses `GROUP=<group>` as the CelesTrak query key. The [group] string is
+  /// passed through verbatim to the API — no validation against
   /// [SatelliteCategory] is performed.
   ///
   /// Each group value maps to its own cache key so different groups do not
-  /// share cached payloads (FR-12).
+  /// share cached payloads.
   ///
   /// Returns a cached list (with [TleSource.local]) when one exists and
   /// its age is within [ttl]. Otherwise fetches from the remote source,
@@ -143,7 +139,7 @@ abstract interface class TleRepository {
   /// [TleSource.celestrak].
   ///
   /// When [allowStale] is `true` and the network request fails, returns
-  /// a stale cached entry if one exists (FR-17 partial).
+  /// a stale cached entry if one exists.
   ///
   /// Throws [SatelliteNotFoundException] when the group name is not known to
   /// CelesTrak. This exception is never masked by the `allowStale` fallback.
@@ -171,8 +167,8 @@ abstract interface class TleRepository {
 
   /// Fetches all [SatelliteTle] records matching an international designator.
   ///
-  /// Uses `INTDES=<intlDesignator>` as the CelesTrak query key (FR-4). The
-  /// designator string is passed verbatim to the API.
+  /// Uses `INTDES=<intlDesignator>` as the CelesTrak query key. The designator
+  /// string is passed verbatim to the API.
   ///
   /// Returns an **empty list** when CelesTrak reports no matching records —
   /// this is the expected result, not an error.
@@ -182,7 +178,7 @@ abstract interface class TleRepository {
   /// the raw payload, and returns records stamped with [TleSource.celestrak].
   ///
   /// When [allowStale] is `true` and the network request fails, returns a
-  /// stale cached entry if one exists (FR-17 partial).
+  /// stale cached entry if one exists.
   ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.

@@ -14,8 +14,6 @@
 /// overridden at construction time.
 ///
 /// See also:
-/// - FR-6: Client facade with both constructors.
-/// - US-12: `dispose` closes the owned `http.Client` only.
 /// - [TleRepository] — the cache/fetch/parse pipeline.
 library;
 
@@ -81,7 +79,7 @@ final class CelestrakClient {
   /// [dispose] to close it when the client is no longer needed.
   ///
   /// All other parameters configure the underlying pipeline:
-  /// - [defaultTtl] — cache time-to-live (default 2 hours, FR-12).
+  /// - [defaultTtl] — cache time-to-live (default 2 hours).
   /// - [defaultFormat] — wire format for remote requests.
   /// - [timeout] — per-attempt HTTP deadline.
   /// - [maxRetries] — total number of attempts (1 initial + up to
@@ -257,7 +255,7 @@ final class CelestrakClient {
   /// with [TleSource.celestrak].
   ///
   /// Each category maps to its own cache key so fetching one category does
-  /// not evict another (FR-2, FR-12).
+  /// not evict another.
   ///
   /// When [allowStale] is `true` and the network request fails, the
   /// repository returns a stale cached list if one exists.
@@ -281,8 +279,7 @@ final class CelestrakClient {
   /// string.
   ///
   /// The [group] string is passed through verbatim to the CelesTrak `GROUP=`
-  /// query parameter — no validation against [SatelliteCategory] is performed
-  /// (FR-21, US-11).
+  /// query parameter — no validation against [SatelliteCategory] is performed.
   ///
   /// Returns a cached list (with [TleSource.local]) when one exists and
   /// its age is within [ttl] (defaults to [defaultTtl]).
@@ -292,7 +289,7 @@ final class CelestrakClient {
   /// with [TleSource.celestrak].
   ///
   /// Each group string maps to its own cache key so fetching one group does
-  /// not evict another (FR-12).
+  /// not evict another.
   ///
   /// When [allowStale] is `true` and the network request fails, the
   /// repository returns a stale cached list if one exists.
@@ -323,7 +320,7 @@ final class CelestrakClient {
   /// case-insensitive substring match on `OBJECT_NAME`.
   ///
   /// Returns an **empty list** when no satellites match — this is the
-  /// expected result, not an error (FR-3, US-5).
+  /// expected result, not an error.
   ///
   /// Returns a cached list (with [TleSource.local]) when one exists and
   /// its age is within [ttl] (defaults to [defaultTtl]).
@@ -354,7 +351,7 @@ final class CelestrakClient {
 
   /// Fetches all [SatelliteTle] records matching an international designator.
   ///
-  /// Uses `INTDES=<intlDesignator>` as the CelesTrak query key (FR-4).
+  /// Uses `INTDES=<intlDesignator>` as the CelesTrak query key.
   ///
   /// Returns an **empty list** when no satellites match — this is the expected
   /// result, not an error.

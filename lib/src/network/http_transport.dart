@@ -1,6 +1,8 @@
 /// HTTP transport with timeout, bounded retry/backoff, and HTTPS enforcement.
 ///
-/// Satisfies NFR-7 (transport reliability) and ADR-1 (injectable http.Client).
+/// Implements the transport reliability contract described in ADR-1: bounded
+/// retry with exponential backoff, HTTPS enforcement, and injectable
+/// http.Client.
 library;
 
 import 'dart:async';
@@ -44,7 +46,6 @@ const Duration kBackoffMax = Duration(seconds: 10);
 /// See also:
 /// - [NetworkException] — thrown when all retry attempts are exhausted.
 /// - ADR-1: injectable http.Client.
-/// - NFR-7: transport reliability requirements.
 final class HttpTransport {
   /// Creates an [HttpTransport].
   ///
@@ -74,7 +75,7 @@ final class HttpTransport {
       throw ArgumentError.value(
         uri,
         'uri',
-        'Only HTTPS URIs are permitted (NFR-7); got scheme "${uri.scheme}"',
+        'Only HTTPS URIs are permitted; got scheme "${uri.scheme}"',
       );
     }
 

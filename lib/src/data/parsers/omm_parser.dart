@@ -12,7 +12,7 @@ import 'package:celestrak/src/domain/omm.dart';
 /// format, or null error escapes.
 ///
 /// Use [parseAllLazy] instead of hand-iterating the decoded JSON list when
-/// processing large category responses (NFR-6): it yields [Omm] records
+/// processing large category responses: it yields [Omm] records
 /// one-at-a-time so individual entries can be discarded after use.
 final class OmmParser {
   /// Creates an [OmmParser].
@@ -62,7 +62,7 @@ final class OmmParser {
   }
 
   /// Lazily parses a decoded CelesTrak OMM JSON array, yielding one [Omm] at
-  /// a time (NFR-6).
+  /// a time.
   ///
   /// Unlike calling `jsonList.map(parse).toList()`, this generator yields each
   /// [Omm] as it is produced so the caller can process or discard it before

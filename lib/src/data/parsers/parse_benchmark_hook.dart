@@ -1,9 +1,10 @@
 /// Benchmark hook for parser timing (ADR-9 stub).
 ///
-/// Phase P7 will run the worst-case category benchmark (full `starlink` OMM)
-/// and decide whether to add an opt-in `Isolate.run` parse path. This hook
-/// lets the measurement harness instrument parse calls without changing the
-/// production code path.
+/// A future hardening pass will run the worst-case category benchmark
+/// (full `starlink` OMM) and decide whether to add an opt-in
+/// `Isolate.run` parse path (ADR-9). This hook lets the measurement
+/// harness instrument parse calls without changing the production code
+/// path.
 ///
 /// See also:
 /// - [NullParseBenchmarkHook] — the default no-op implementation.

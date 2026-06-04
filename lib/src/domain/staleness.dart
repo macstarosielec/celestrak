@@ -1,12 +1,10 @@
 /// TTL freshness and stale-threshold classification helpers.
 ///
 /// Staleness is always **reported** to callers and never causes data to be
-/// silently discarded (FR-16). Action on stale data is the caller's
-/// responsibility.
+/// silently discarded. Action on stale data is the caller's responsibility.
 ///
 /// See also:
 /// - [StalenessChecker] — encapsulates a [Clock] and a `staleThreshold`.
-/// - FR-16: staleness is always reported, never causes silent data discard
 library;
 
 import 'package:celestrak/src/domain/clock.dart';
