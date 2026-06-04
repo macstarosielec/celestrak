@@ -12,7 +12,7 @@ import 'package:celestrak/src/data/local/cache_store.dart';
 /// - `<key>.bin`  — the raw payload bytes
 /// - `<key>.ts`   — the ISO-8601 timestamp string written at cache time
 ///
-/// Truncated or missing files are treated as cache misses (FR-15/NFR-9).
+/// Truncated or missing files are treated as cache misses.
 final class FileCacheStore implements CacheStore {
   /// Creates a [FileCacheStore] rooted at [directory].
   const FileCacheStore(this.directory);
@@ -36,14 +36,14 @@ final class FileCacheStore implements CacheStore {
     try {
       final file = File(_dataPath(key));
       if (!file.existsSync()) return null;
-      // Treat a missing .ts file as a torn write — return null (FR-15/NFR-9).
+      // Treat a missing .ts file as a torn write — return null.
       final tsFile = File(_tsPath(key));
       if (!tsFile.existsSync()) return null;
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) return null;
       return bytes;
     } on Exception {
-      // Treat any I/O or format error as a cache miss (FR-15).
+      // Treat any I/O or format error as a cache miss.
       return null;
     }
   }
@@ -66,7 +66,7 @@ final class FileCacheStore implements CacheStore {
     // Note: rename() is atomic on POSIX when source and destination share the
     // same directory. On Windows rename() is not atomic; cache writes may
     // produce a torn entry on power loss. Callers should treat a cache miss
-    // as a normal condition (FR-15/NFR-9).
+    // as a normal condition.
     final tmpData = File('${_dataPath(key)}.tmp');
     final tmpTs = File('${_tsPath(key)}.tmp');
     try {

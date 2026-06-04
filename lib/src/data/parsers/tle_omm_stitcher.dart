@@ -1,4 +1,4 @@
-/// Dual-format TLE/OMM stitching (ADR-3, FR-9).
+/// Dual-format TLE/OMM stitching (ADR-3).
 ///
 /// When CelesTrak data is fetched in OMM format the response carries rich
 /// CCSDS keywords but no verbatim TLE lines. Downstream SGP4 consumers
@@ -22,7 +22,7 @@ import 'package:celestrak/src/domain/satellite_tle.dart';
 ///
 /// [TleOmmStitcher] consumes both responses and produces a single
 /// [SatelliteTle] that carries the full [Omm] payload **and** the verbatim
-/// lines required by SGP4 propagators (ADR-3, FR-9).
+/// lines required by SGP4 propagators (ADR-3).
 ///
 /// Usage:
 /// ```dart
@@ -45,7 +45,7 @@ final class TleOmmStitcher {
   ///
   /// [verifyChecksum] controls TLE checksum validation (default `true`).
   ///
-  /// ### 6+-digit catalog numbers (RK-1)
+  /// ### 6+-digit catalog numbers
   ///
   /// Objects with NORAD IDs ≥ 100 000 are encoded in alpha-5 format in TLE
   /// bodies. Some CelesTrak groups omit these objects from the `FORMAT=TLE`
@@ -68,7 +68,7 @@ final class TleOmmStitcher {
     final resolvedFetchedAt = fetchedAt ?? DateTime.now().toUtc();
     final name = omm.objectName ?? '';
 
-    // Fast path: empty TLE body → no verbatim lines available (RK-1).
+    // Fast path: empty TLE body → no verbatim lines available.
     final trimmed = tleBody.trim();
     if (trimmed.isEmpty) {
       return _stitchWithEmptyLines(omm, name, resolvedFetchedAt);
@@ -89,7 +89,7 @@ final class TleOmmStitcher {
       }
     }
 
-    // No matching record found — return with empty lines (RK-1).
+    // No matching record found — return with empty lines.
     return _stitchWithEmptyLines(omm, name, resolvedFetchedAt);
   }
 

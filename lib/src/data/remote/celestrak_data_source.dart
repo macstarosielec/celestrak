@@ -2,7 +2,7 @@
 ///
 /// Builds and issues HTTP GET requests to the `gp.php` endpoint, mapping
 /// the well-known `"No GP data found"` response to a typed
-/// [SatelliteNotFoundException] (FR-23). All other transport failures
+/// [SatelliteNotFoundException]. All other transport failures
 /// propagate as [NetworkException] from [HttpTransport].
 library;
 
@@ -24,7 +24,7 @@ const String kNotFoundSentinel = 'No GP data found';
 ///
 /// Constructs query URIs for individual objects by NORAD catalog number
 /// (`CATNR=`), issues the request through [HttpTransport], and maps the
-/// not-found sentinel to a [SatelliteNotFoundException] (FR-1, FR-5, FR-23).
+/// not-found sentinel to a [SatelliteNotFoundException].
 ///
 /// All transport-level failures (timeouts, socket errors, 5xx after retries,
 /// non-retryable 4xx) surface as [NetworkException] — they originate inside
@@ -46,14 +46,14 @@ final class CelestrakDataSource {
   /// Fetches raw orbital data for a single satellite by NORAD catalog number.
   ///
   /// Builds a `gp.php?CATNR=<noradId>&FORMAT=<format>` URI (uppercase query
-  /// keys, per the CelesTrak API contract — FR-1/FR-5), issues an HTTPS GET,
+  /// keys, per the CelesTrak API contract), issues an HTTPS GET,
   /// and returns the response body verbatim.
   ///
   /// Throws [SatelliteNotFoundException] when the response body equals the
   /// CelesTrak not-found sentinel `"No GP data found"` (case-sensitive).
   ///
   /// Throws [NetworkException] on transport failures (propagated from
-  /// [HttpTransport] without wrapping — FR-23).
+  /// [HttpTransport] without wrapping).
   ///
   /// Throws [ArgumentError] if [noradId] is less than 1.
   Future<String> fetchByNoradId(
@@ -90,15 +90,15 @@ final class CelestrakDataSource {
   /// Fetches raw orbital data for satellites matching a name substring.
   ///
   /// Builds a `gp.php?NAME=<name>&FORMAT=<format>` URI (uppercase query
-  /// keys, per the CelesTrak API contract — FR-3), issues an HTTPS GET,
+  /// keys, per the CelesTrak API contract), issues an HTTPS GET,
   /// and returns the response body verbatim.
   ///
   /// Returns the empty string when the response body equals the CelesTrak
   /// not-found sentinel `"No GP data found"` (case-sensitive). Callers
-  /// should treat an empty string as a zero-result response (FR-3, US-5).
+  /// should treat an empty string as a zero-result response.
   ///
   /// Throws [NetworkException] on transport failures (propagated from
-  /// [HttpTransport] without wrapping — FR-23).
+  /// [HttpTransport] without wrapping).
   ///
   /// Throws [ArgumentError] if [name] is empty.
   Future<String> fetchByName(
@@ -120,7 +120,7 @@ final class CelestrakDataSource {
     );
 
     // CelesTrak returns 404 (or 200 + sentinel) when no satellite matches
-    // the name query.  Both map to an empty result (FR-3, US-5).
+    // the name query.  Both map to an empty result.
     final String body;
     try {
       body = await _transport.get(uri);
@@ -138,7 +138,7 @@ final class CelestrakDataSource {
   /// designator.
   ///
   /// Builds a `gp.php?INTDES=<intlDesignator>&FORMAT=<format>` URI (uppercase
-  /// query keys, per the CelesTrak API contract — FR-4), issues an HTTPS GET,
+  /// query keys, per the CelesTrak API contract), issues an HTTPS GET,
   /// and returns the response body verbatim.
   ///
   /// Returns the empty string when the response body equals the CelesTrak
@@ -154,7 +154,7 @@ final class CelestrakDataSource {
   /// Throws [ArgumentError] when [intlDesignator] is malformed.
   ///
   /// Throws [NetworkException] on transport failures (propagated from
-  /// [HttpTransport] without wrapping — FR-23).
+  /// [HttpTransport] without wrapping).
   Future<String> fetchByIntlDesignator(
     String intlDesignator, {
     CelestrakFormat format = CelestrakFormat.omm,
@@ -183,7 +183,7 @@ final class CelestrakDataSource {
   /// Fetches raw orbital data for a satellite group by CelesTrak group string.
   ///
   /// Builds a `gp.php?GROUP=<group>&FORMAT=<format>` URI (uppercase query
-  /// keys, per the CelesTrak API contract — FR-2), issues an HTTPS GET,
+  /// keys, per the CelesTrak API contract), issues an HTTPS GET,
   /// and returns the response body verbatim.
   ///
   /// Throws [SatelliteNotFoundException] when the response body equals the
@@ -193,7 +193,7 @@ final class CelestrakDataSource {
   /// name.
   ///
   /// Throws [NetworkException] on transport failures (propagated from
-  /// [HttpTransport] without wrapping — FR-23).
+  /// [HttpTransport] without wrapping).
   ///
   /// Throws [ArgumentError] if [group] is empty.
   Future<String> fetchByGroup(

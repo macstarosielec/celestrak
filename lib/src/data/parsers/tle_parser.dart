@@ -13,7 +13,7 @@ import 'package:celestrak/src/domain/satellite_tle.dart';
 /// format, or null error escapes.
 ///
 /// Use [parseAllLazy] instead of [parseAll] when processing large category
-/// bodies (NFR-6): it yields records one-at-a-time so the intermediate line
+/// bodies: it yields records one-at-a-time so the intermediate line
 /// buffer is released as iteration proceeds.
 final class TleParser {
   /// Creates a [TleParser].
@@ -65,7 +65,7 @@ final class TleParser {
   /// Throws [TleParseException] if the record count is not a multiple of 3.
   ///
   /// For large category bodies prefer [parseAllLazy] to avoid holding the
-  /// full output list in memory while iterating (NFR-6).
+  /// full output list in memory while iterating.
   List<SatelliteTle> parseAll(
     String body, {
     DateTime? fetchedAt,
@@ -78,7 +78,7 @@ final class TleParser {
       ).toList();
 
   /// Lazily parses a multi-record TLE body, yielding one [SatelliteTle] at a
-  /// time (NFR-6).
+  /// time.
   ///
   /// Unlike [parseAll], this generator does not accumulate the full output
   /// list in memory: each record is yielded as soon as it is parsed, allowing

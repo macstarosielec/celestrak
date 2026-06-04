@@ -1,8 +1,8 @@
 /// Production implementation of [TleRepository].
 ///
-/// Orchestrates the cache → TTL → fetch → parse → stamp pipeline (FR-12,
-/// FR-17). All dependencies are injected, so the repository is fully
-/// testable without real network calls or file I/O.
+/// Orchestrates the cache → TTL → fetch → parse → stamp pipeline. All
+/// dependencies are injected, so the repository is fully testable without
+/// real network calls or file I/O.
 library;
 
 import 'dart:convert' show jsonDecode, utf8;
@@ -24,7 +24,7 @@ import 'package:celestrak/src/domain/tle_repository.dart';
 /// [CelestrakDataSource], and a [Clock] to deliver the full
 /// cache → TTL → fetch → parse → stamp pipeline.
 ///
-/// ## Cache behaviour (FR-12)
+/// ## Cache behaviour
 ///
 /// On each [fetchByNoradId] call:
 /// 1. Compute the cache key from `noradId`, `format`, and
@@ -42,10 +42,10 @@ import 'package:celestrak/src/domain/tle_repository.dart';
 /// `FORMAT=TLE` request (also cached under its own key) and passes both
 /// payloads to [TleOmmStitcher], which picks the record matching
 /// `omm.noradCatId` and fills in [SatelliteTle.line1] /
-/// [SatelliteTle.line2]. If the matching TLE record is absent (e.g. 6+-digit
-/// IDs, RK-1) the stitcher falls back to empty lines.
+/// [SatelliteTle.line2]. If the matching TLE record is absent (e.g. NORAD IDs
+/// ≥ 100 000 (alpha-5 encoded)) the stitcher falls back to empty lines.
 ///
-/// ## `allowStale` fallback (FR-17 partial)
+/// ## `allowStale` fallback
 ///
 /// When `allowStale` is `true` and the remote fetch throws any
 /// [Exception], the repository falls back to a stale cached entry if one
@@ -98,7 +98,7 @@ final class TleRepositoryImpl implements TleRepository {
       rethrow;
     } on Exception {
       if (allowStale && cacheAge != null) {
-        // Network failed but a stale entry exists — return it (FR-17).
+        // Network failed but a stale entry exists — return it.
         return _readFromCache(noradId, format, key, now);
       }
       rethrow;
@@ -175,7 +175,7 @@ final class TleRepositoryImpl implements TleRepository {
       rethrow;
     } on Exception {
       if (allowStale && cacheAge != null) {
-        // Network failed but a stale entry exists — return it (FR-17).
+        // Network failed but a stale entry exists — return it.
         return _readGroupFromCache(group, format, key, now);
       }
       rethrow;
@@ -523,7 +523,7 @@ final class TleRepositoryImpl implements TleRepository {
   /// are looked up by `noradCatId` from this in-memory string — no additional
   /// HTTP calls are made.
   ///
-  /// Records are decoded lazily via [OmmParser.parseAllLazy] (NFR-6): each
+  /// Records are decoded lazily via [OmmParser.parseAllLazy]: each
   /// `Omm` is stitched and added to the result list in-turn so the decoded
   /// JSON entries can be garbage-collected as iteration proceeds.
   List<SatelliteTle> _parseCategoryOmm(
@@ -547,7 +547,7 @@ final class TleRepositoryImpl implements TleRepository {
 
   /// Parses a multi-record TLE body into a list of [SatelliteTle].
   ///
-  /// Records are decoded lazily via [TleParser.parseAllLazy] (NFR-6): each
+  /// Records are decoded lazily via [TleParser.parseAllLazy]: each
   /// [SatelliteTle] is produced one-at-a-time, avoiding a full output list
   /// in memory during iteration. The input line buffer is materialised upfront
   /// for the multiple-of-3 guard; see [TleParser.parseAllLazy] for details.
@@ -690,8 +690,8 @@ final class TleRepositoryImpl implements TleRepository {
   /// bytes, parses into a list, and returns records stamped with
   /// [TleSource.celestrak].
   ///
-  /// Stores an empty payload when the remote returns no match (FR-3) so the
-  /// cache key exists and subsequent calls within TTL short-circuit without
+  /// Stores an empty payload when the remote returns no match so the cache
+  /// key exists and subsequent calls within TTL short-circuit without
   /// hitting the network.
   Future<List<SatelliteTle>> _fetchAndCacheName(
     String name,
@@ -867,8 +867,8 @@ final class TleRepositoryImpl implements TleRepository {
       // inconsistency, not an alpha-5 encoding gap).
       rethrow;
     } on NetworkException {
-      // Transient transport failure — fall back to empty lines (RK-1
-      // tolerance: alpha-5 IDs may legitimately lack a TLE body).
+      // Transient transport failure — fall back to empty lines (alpha-5
+      // IDs ≥ 100 000 may legitimately lack a TLE body).
       return '';
     }
   }

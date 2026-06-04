@@ -5,7 +5,6 @@
 ///
 /// See also:
 /// - [SystemClock] — production implementation backed by [DateTime.now].
-/// - NFR-19: all time-dependent logic must accept an injectable clock.
 library;
 
 /// Supplies the current UTC time.
