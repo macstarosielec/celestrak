@@ -152,6 +152,7 @@ void main() {
   group('SpaceTrackClient — constructor', () {
     test('withClient — isLoggedIn is false before first fetch', () {
       final client = _client((_) async => http.Response(_issGpFixture, 200));
+      addTearDown(client.dispose);
 
       expect(client.isLoggedIn, isFalse);
     });
@@ -190,6 +191,7 @@ void main() {
       final client = _client(
         (_) async => http.Response(_issGpFixture, 200),
       );
+      addTearDown(client.dispose);
 
       final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -200,6 +202,7 @@ void main() {
       final client = _client(
         (_) async => http.Response(_issGpFixture, 200),
       );
+      addTearDown(client.dispose);
 
       final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -210,6 +213,7 @@ void main() {
       final client = _client(
         (_) async => http.Response(_issGpFixture, 200),
       );
+      addTearDown(client.dispose);
 
       final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -220,6 +224,7 @@ void main() {
       final client = _client(
         (_) async => http.Response(_issGpFixture, 200),
       );
+      addTearDown(client.dispose);
 
       final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -231,6 +236,7 @@ void main() {
       final client = _client(
         (_) async => http.Response(_issGpFixture, 200),
       );
+      addTearDown(client.dispose);
 
       final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -242,6 +248,7 @@ void main() {
       final client = _client(
         (_) async => http.Response(_issGpFixture, 200),
       );
+      addTearDown(client.dispose);
 
       final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -252,6 +259,7 @@ void main() {
       final client = _client(
         (_) async => http.Response(_issGpFixture, 200),
       );
+      addTearDown(client.dispose);
 
       final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -263,6 +271,7 @@ void main() {
       final client = _client(
         (_) async => http.Response(_issGpFixture, 200),
       );
+      addTearDown(client.dispose);
 
       await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -278,6 +287,7 @@ void main() {
           return http.Response('', 200);
         },
       );
+      addTearDown(client.dispose);
 
       await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
       await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
@@ -293,6 +303,7 @@ void main() {
       final client = _client(
         (_) async => http.Response('[]', 200),
       );
+      addTearDown(client.dispose);
 
       await expectLater(
         client.fetchByQuery(SpaceTrackQuery.byNoradId(99999)),
@@ -305,6 +316,7 @@ void main() {
       final client = _client(
         (_) async => http.Response('[]', 200),
       );
+      addTearDown(client.dispose);
 
       try {
         await client.fetchByQuery(SpaceTrackQuery.byNoradId(99999));
@@ -319,6 +331,7 @@ void main() {
         (_) async => http.Response(_issGpFixture, 200),
         loginHandler: (_) async => http.Response('Unauthorized', 401),
       );
+      addTearDown(client.dispose);
 
       final ex = await _catchAuth(
         () => client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -332,6 +345,7 @@ void main() {
       final client = _client(
         (_) async => http.Response('Forbidden', 403),
       );
+      addTearDown(client.dispose);
 
       final ex = await _catchAuth(
         () => client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -359,6 +373,7 @@ void main() {
           return http.Response('', 200);
         },
       );
+      addTearDown(client.dispose);
 
       // First fetch establishes the session.
       await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
@@ -379,12 +394,13 @@ void main() {
       final client = _client(
         (_) async => http.Response('Too Many Requests', 429),
       );
+      addTearDown(client.dispose);
 
       final ex = await _catchRateLimit(
         () => client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
       );
 
-      expect(ex, isA<RateLimitException>());
+      expect(ex.uri?.path, contains('/NORAD_CAT_ID/25544'));
     });
 
     test('RateLimitException.retryAfter is parsed from Retry-After header',
@@ -396,6 +412,7 @@ void main() {
           headers: {'retry-after': '60'},
         ),
       );
+      addTearDown(client.dispose);
 
       final ex = await _catchRateLimit(
         () => client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -408,6 +425,7 @@ void main() {
       final client = _client(
         (_) async => http.Response('Internal Server Error', 500),
       );
+      addTearDown(client.dispose);
 
       final ex = await _catchNetwork(
         () => client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -420,6 +438,7 @@ void main() {
       final client = _client(
         (_) async => throw const SocketException('Network unreachable'),
       );
+      addTearDown(client.dispose);
 
       final ex = await _catchNetwork(
         () => client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -432,6 +451,7 @@ void main() {
       final client = _client(
         (_) async => throw TimeoutException('timed out'),
       );
+      addTearDown(client.dispose);
 
       final ex = await _catchNetwork(
         () => client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -450,6 +470,7 @@ void main() {
         (_) async => http.Response(_issGpFixture, 200),
         clock: clock,
       );
+      addTearDown(client.dispose);
 
       final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
 
@@ -488,9 +509,10 @@ void main() {
   "BSTAR": "0.00012345",
   "MEAN_MOTION_DOT": "0.00001234",
   "MEAN_MOTION_DDOT": "0.0",
-  "TLE_LINE2": "2 25544  51.6411 123.4567 0004942 234.5678 345.6789 15.49560691123456"
+  "TLE_LINE2": "2 25544  51.6411 123.4567 0004942 234.5678 345.6789 15.49560691123455"
 }]''';
       final client = _client((_) async => http.Response(body, 200));
+      addTearDown(client.dispose);
 
       await expectLater(
         client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -526,9 +548,10 @@ void main() {
   "BSTAR": "0.00012345",
   "MEAN_MOTION_DOT": "0.00001234",
   "MEAN_MOTION_DDOT": "0.0",
-  "TLE_LINE1": "1 25544U 98067A   24015.43750000  .00001234  00000-0  12345-4 0  9999"
+  "TLE_LINE1": "1 25544U 98067A   24015.43750000  .00001234  00000-0  12345-4 0  9990"
 }]''';
       final client = _client((_) async => http.Response(body, 200));
+      addTearDown(client.dispose);
 
       await expectLater(
         client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -565,9 +588,10 @@ void main() {
   "MEAN_MOTION_DOT": "0.00001234",
   "MEAN_MOTION_DDOT": "0.0",
   "TLE_LINE1": "",
-  "TLE_LINE2": "2 25544  51.6411 123.4567 0004942 234.5678 345.6789 15.49560691123456"
+  "TLE_LINE2": "2 25544  51.6411 123.4567 0004942 234.5678 345.6789 15.49560691123455"
 }]''';
       final client = _client((_) async => http.Response(body, 200));
+      addTearDown(client.dispose);
 
       await expectLater(
         client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
@@ -601,6 +625,7 @@ void main() {
         callCount++;
         return http.Response(_issGpFixture, 200);
       });
+      addTearDown(client.dispose);
 
       await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
       await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
@@ -628,6 +653,7 @@ void main() {
         timeout: const Duration(seconds: 5),
         clock: clock,
       );
+      addTearDown(client.dispose);
 
       await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
       clock.advance(const Duration(seconds: 3));

@@ -296,20 +296,20 @@ void main() {
       expect(_issGpFixture, contains('"ORIGINATOR": "18 SDS"'));
     });
 
-    test('throws ArgumentError when noradId < 1', () {
+    test('throws ArgumentError when noradId < 1', () async {
       final src = _source((_) async => http.Response('', 200));
 
-      expect(
-        () => src.fetchByNoradId(0),
+      await expectLater(
+        src.fetchByNoradId(0),
         throwsA(isA<ArgumentError>()),
       );
     });
 
-    test('throws ArgumentError when noradId is negative', () {
+    test('throws ArgumentError when noradId is negative', () async {
       final src = _source((_) async => http.Response('', 200));
 
-      expect(
-        () => src.fetchByNoradId(-1),
+      await expectLater(
+        src.fetchByNoradId(-1),
         throwsA(isA<ArgumentError>()),
       );
     });
@@ -401,9 +401,13 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('SpaceTrackDataSource — rate limiting', () {
-    // The FakeClock does not affect Future.delayed wall time, so we use
-    // minRequestInterval: Duration.zero to keep tests fast while still
-    // verifying the _lastRequestAt bookkeeping logic via clock snapshots.
+    // The FakeClock does not affect Future.delayed wall time. Two strategies
+    // are used to avoid real sleeps:
+    //   1. minRequestInterval: Duration.zero — no delay is ever needed, used to
+    //      verify _lastRequestAt bookkeeping logic via clock snapshots.
+    //   2. Advance the clock past the interval before the second call — elapsed
+    //      time exceeds minRequestInterval so the no-delay path is taken even
+    //      when a non-zero interval is configured.
 
     test('_lastRequestAt is stamped before the await (eager reservation)',
         () async {
