@@ -1,6 +1,8 @@
 /// Parsing of CelesTrak OMM JSON into [Omm] domain models.
 library;
 
+import 'dart:developer' show log;
+
 import 'package:celestrak/src/data/parsers/parse_benchmark_hook.dart';
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/omm.dart';
@@ -118,7 +120,18 @@ String _stringOrDefault(
   String fallback,
 ) {
   final value = json[key];
-  return value?.toString() ?? fallback;
+  if (value == null) {
+    log(
+      'OmmParser: missing CCSDS field "$key" — '
+      'using default value "$fallback". '
+      'Verify the data source returns this field to avoid silent '
+      'wrong-reference-frame propagation.',
+      name: 'celestrak.omm_parser',
+      level: 900, // Level.WARNING
+    );
+    return fallback;
+  }
+  return value.toString();
 }
 
 int _int(Map<String, dynamic> json, String key) {

@@ -498,6 +498,33 @@ void main() {
         throwsA(isA<NetworkException>()),
       );
     });
+
+    test('returns empty string on 404 response (CelesTrak name-not-found)',
+        () async {
+      // CelesTrak returns HTTP 404 for unknown NAME= queries in addition to
+      // the "No GP data found" sentinel body. Both cases map to empty string
+      // per the fetchByName API contract.
+      final source = _source(
+        (_) async => http.Response('not found', 404),
+      );
+
+      final result = await source.fetchByName('XYZZY_NO_SUCH_SATELLITE');
+
+      expect(result, equals(''));
+    });
+
+    test('propagates non-404 NetworkException from fetchByName', () async {
+      // Only 404 is suppressed; other status codes must still surface.
+      final source = _source(
+        (_) async => http.Response('bad gateway', 502),
+        maxAttempts: 1,
+      );
+
+      await expectLater(
+        source.fetchByName('ISS'),
+        throwsA(isA<NetworkException>()),
+      );
+    });
   });
 
   group('CelestrakDataSource — fetchByIntlDesignator', () {

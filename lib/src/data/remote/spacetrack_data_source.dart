@@ -168,6 +168,9 @@ final class SpaceTrackDataSource {
   final Duration _timeout;
   final Clock _clock;
 
+  /// Session cookie extracted from the login response Set-Cookie header.
+  String? _sessionCookie;
+
   /// The timestamp of the most recent data request, used for throttling.
   DateTime? _lastRequestAt;
 
@@ -226,6 +229,7 @@ final class SpaceTrackDataSource {
         );
       }
 
+      _sessionCookie = response.headers['set-cookie'];
       _loggedIn = true;
     } on AuthenticationException {
       rethrow;
@@ -312,10 +316,16 @@ final class SpaceTrackDataSource {
   /// [RateLimitException], and transport failures → [NetworkException].
   Future<String> _get(Uri uri) async {
     try {
-      final response = await _client.get(uri).timeout(_timeout);
+      final headers = <String, String>{};
+      if (_sessionCookie != null) {
+        headers['Cookie'] = _sessionCookie!;
+      }
+      final response =
+          await _client.get(uri, headers: headers).timeout(_timeout);
 
       if (response.statusCode == 401 || response.statusCode == 403) {
         _loggedIn = false;
+        _sessionCookie = null;
         throw AuthenticationException(
           'Space-Track session rejected: HTTP ${response.statusCode}',
           statusCode: response.statusCode,
