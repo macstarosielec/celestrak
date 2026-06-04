@@ -66,6 +66,24 @@ import 'package:http/http.dart' as http;
 /// owned (created internally) or caller-supplied via
 /// [SpaceTrackClient.withClient].
 ///
+/// ## Credential gating
+///
+/// When `identity` or `password` is `null` or empty the client is
+/// **disabled**: [isEnabled] returns `false`, construction succeeds without
+/// error, but calling [fetchByQuery] throws a [StateError]. This allows
+/// applications to construct a [SpaceTrackClient] unconditionally and gate on
+/// [isEnabled] rather than wrapping construction in a try/catch.
+///
+/// ```dart
+/// final client = SpaceTrackClient(
+///   identity: Platform.environment['SPACETRACK_USER'],
+///   password: Platform.environment['SPACETRACK_PASS'],
+/// );
+/// if (client.isEnabled) {
+///   final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
+/// }
+/// ```
+///
 /// ## Lifecycle
 ///
 /// Instances created with the default [SpaceTrackClient.new] constructor
@@ -79,6 +97,8 @@ final class SpaceTrackClient {
   /// Call [dispose] when finished to close the owned client.
   ///
   /// [identity] and [password] are the Space-Track.org account credentials.
+  /// Pass `null` or an empty string to create a **disabled** client that
+  /// constructs without error but throws [StateError] on [fetchByQuery].
   ///
   /// [baseUrl] overrides the production Space-Track origin (for testing).
   ///
@@ -88,9 +108,10 @@ final class SpaceTrackClient {
   /// [timeout] is the per-request HTTP deadline.
   ///
   /// [clock] is the injectable time source used for rate-limit enforcement.
+  /// See also: [isEnabled] — check whether credentials were accepted.
   SpaceTrackClient({
-    required String identity,
-    required String password,
+    String? identity,
+    String? password,
     String baseUrl = kSpaceTrackBaseUrl,
     Duration minRequestInterval = kDefaultMinRequestInterval,
     Duration timeout = kSpaceTrackDefaultTimeout,
@@ -111,11 +132,14 @@ final class SpaceTrackClient {
   /// The client does **not** close [client] on [dispose]. The caller is
   /// responsible for managing the client lifecycle.
   ///
+  /// [identity] and [password] are the Space-Track.org account credentials.
+  /// Pass `null` or an empty string to create a **disabled** client.
+  ///
   /// Use this constructor in tests to inject a mock HTTP client.
   SpaceTrackClient.withClient({
     required http.Client client,
-    required String identity,
-    required String password,
+    String? identity,
+    String? password,
     String baseUrl = kSpaceTrackBaseUrl,
     Duration minRequestInterval = kDefaultMinRequestInterval,
     Duration timeout = kSpaceTrackDefaultTimeout,
@@ -133,27 +157,43 @@ final class SpaceTrackClient {
 
   SpaceTrackClient._init({
     required http.Client client,
-    required String identity,
-    required String password,
+    required String? identity,
+    required String? password,
     required String baseUrl,
     required Duration minRequestInterval,
     required Duration timeout,
     required Clock clock,
     required bool ownsClient,
-  })  : _dataSource = SpaceTrackDataSource(
-          client: client,
-          identity: identity,
-          password: password,
-          baseUrl: baseUrl,
-          minRequestInterval: minRequestInterval,
-          timeout: timeout,
-          clock: clock,
-        ),
+  })  : _dataSource = _hasCredentials(identity, password)
+            ? SpaceTrackDataSource(
+                client: client,
+                identity: identity!,
+                password: password!,
+                baseUrl: baseUrl,
+                minRequestInterval: minRequestInterval,
+                timeout: timeout,
+                clock: clock,
+              )
+            : null,
         _httpClient = client,
         _clock = clock,
         _ownsClient = ownsClient;
 
-  final SpaceTrackDataSource _dataSource;
+  /// Returns `true` when both [identity] and [password] are non-null and
+  /// non-empty.
+  ///
+  /// Note: whitespace-only strings (e.g. `'   '`) are treated as valid
+  /// credentials and passed to [SpaceTrackDataSource] as-is. If the
+  /// Space-Track server rejects them, an [AuthenticationException] is raised.
+  /// Trim your inputs before construction if whitespace-only should be treated
+  /// as absent.
+  static bool _hasCredentials(String? identity, String? password) =>
+      identity != null &&
+      identity.isNotEmpty &&
+      password != null &&
+      password.isNotEmpty;
+
+  final SpaceTrackDataSource? _dataSource;
   final http.Client _httpClient;
   final Clock _clock;
   final bool _ownsClient;
@@ -161,8 +201,16 @@ final class SpaceTrackClient {
 
   static const _ommParser = OmmParser();
 
+  /// `true` when credentials were supplied and the source is usable.
+  ///
+  /// When `false`, [fetchByQuery] throws [StateError] immediately without
+  /// making any network request.
+  bool get isEnabled => _dataSource != null;
+
   /// `true` if a successful login has been performed since construction.
-  bool get isLoggedIn => _dataSource.isLoggedIn;
+  ///
+  /// Always `false` when [isEnabled] is `false`.
+  bool get isLoggedIn => _dataSource?.isLoggedIn ?? false;
 
   /// Fetches GP data for the satellite described by [query].
   ///
@@ -171,6 +219,11 @@ final class SpaceTrackClient {
   /// to the caller (re-login is the caller's responsibility).
   ///
   /// Returns a [SatelliteTle] stamped with [TleSource.spacetrack].
+  ///
+  /// Throws [StateError] when [dispose] has already been called.
+  ///
+  /// Throws [StateError] when [isEnabled] is `false` (no credentials were
+  /// supplied at construction time).
   ///
   /// Throws [AuthenticationException] on HTTP 401 or 403.
   ///
@@ -184,11 +237,19 @@ final class SpaceTrackClient {
     if (_disposed) {
       throw StateError('SpaceTrackClient has been disposed');
     }
-    if (!_dataSource.isLoggedIn) {
-      await _dataSource.login();
+    final source = _dataSource;
+    if (source == null) {
+      throw StateError(
+        'SpaceTrackClient is disabled: no credentials were supplied. '
+        'Provide a non-empty identity and password to enable Space-Track '
+        'access, or check isEnabled before calling fetchByQuery.',
+      );
+    }
+    if (!source.isLoggedIn) {
+      await source.login();
     }
 
-    final body = await _dataSource.fetchByNoradId(query.noradId);
+    final body = await source.fetchByNoradId(query.noradId);
     final fetchedAt = _clock.now;
     return _parseBody(body, query.noradId, fetchedAt);
   }
