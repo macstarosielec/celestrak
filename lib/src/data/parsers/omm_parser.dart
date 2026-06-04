@@ -1,6 +1,7 @@
 /// Parsing of CelesTrak OMM JSON into [Omm] domain models.
 library;
 
+import 'package:celestrak/src/data/parsers/parse_benchmark_hook.dart';
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/omm.dart';
 
@@ -9,9 +10,20 @@ import 'package:celestrak/src/domain/omm.dart';
 /// The parser is stateless; construct once (`const OmmParser()`) and reuse.
 /// All parse failures are reported as [OmmParseException] — no raw cast,
 /// format, or null error escapes.
-class OmmParser {
-  /// Creates a stateless [OmmParser].
-  const OmmParser();
+///
+/// Use [parseAllLazy] instead of hand-iterating the decoded JSON list when
+/// processing large category responses (NFR-6): it yields [Omm] records
+/// one-at-a-time so individual entries can be discarded after use.
+final class OmmParser {
+  /// Creates an [OmmParser].
+  ///
+  /// [benchmarkHook] receives timing signals around multi-record parses
+  /// (ADR-9); defaults to [NullParseBenchmarkHook].
+  const OmmParser({
+    ParseBenchmarkHook benchmarkHook = const NullParseBenchmarkHook(),
+  }) : _hook = benchmarkHook;
+
+  final ParseBenchmarkHook _hook;
 
   /// Parses a single CelesTrak OMM JSON object into an [Omm].
   ///
@@ -47,6 +59,40 @@ class OmmParser {
       meanMotionDot: _double(json, 'MEAN_MOTION_DOT'),
       meanMotionDdot: _double(json, 'MEAN_MOTION_DDOT'),
     );
+  }
+
+  /// Lazily parses a decoded CelesTrak OMM JSON array, yielding one [Omm] at
+  /// a time (NFR-6).
+  ///
+  /// Unlike calling `jsonList.map(parse).toList()`, this generator yields each
+  /// [Omm] as it is produced so the caller can process or discard it before
+  /// the next entry is decoded. The [jsonList] itself (the top-level
+  /// `List<Map<String, dynamic>>`) must already be decoded by the caller via
+  /// `jsonDecode`; this method does not decode JSON.
+  ///
+  /// Throws [OmmParseException] on the first malformed entry; subsequent
+  /// entries are not processed.
+  ///
+  /// The [ParseBenchmarkHook] injected at construction receives
+  /// [ParseBenchmarkHook.onParseStart] / [ParseBenchmarkHook.onParseEnd]
+  /// signals bracketing the full iteration (ADR-9).
+  Iterable<Omm> parseAllLazy(
+    List<Map<String, dynamic>> jsonList,
+  ) sync* {
+    if (jsonList.isEmpty) return;
+
+    _hook.onParseStart(ParseBenchmarkHook.labelOmm);
+    var count = 0;
+    final sw = Stopwatch()..start();
+    try {
+      for (final entry in jsonList) {
+        yield parse(entry);
+        count++;
+      }
+    } finally {
+      sw.stop();
+      _hook.onParseEnd(ParseBenchmarkHook.labelOmm, count, sw.elapsed);
+    }
   }
 }
 

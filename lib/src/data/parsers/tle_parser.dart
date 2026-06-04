@@ -1,6 +1,7 @@
 /// Parsing of TLE strings into [SatelliteTle] domain models.
 library;
 
+import 'package:celestrak/src/data/parsers/parse_benchmark_hook.dart';
 import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
@@ -10,9 +11,20 @@ import 'package:celestrak/src/domain/satellite_tle.dart';
 /// The parser is stateless; construct once (`const TleParser()`) and reuse.
 /// All parse failures are reported as [TleParseException] — no raw cast,
 /// format, or null error escapes.
-class TleParser {
-  /// Creates a stateless [TleParser].
-  const TleParser();
+///
+/// Use [parseAllLazy] instead of [parseAll] when processing large category
+/// bodies (NFR-6): it yields records one-at-a-time so the intermediate line
+/// buffer is released as iteration proceeds.
+final class TleParser {
+  /// Creates a [TleParser].
+  ///
+  /// [benchmarkHook] receives timing signals around multi-record parses
+  /// (ADR-9); defaults to [NullParseBenchmarkHook].
+  const TleParser({
+    ParseBenchmarkHook benchmarkHook = const NullParseBenchmarkHook(),
+  }) : _hook = benchmarkHook;
+
+  final ParseBenchmarkHook _hook;
 
   /// Parses a single TLE record (name + 2 lines) into a [SatelliteTle].
   ///
@@ -51,33 +63,70 @@ class TleParser {
   ///
   /// [body] must consist of non-empty lines in multiples of three.
   /// Throws [TleParseException] if the record count is not a multiple of 3.
+  ///
+  /// For large category bodies prefer [parseAllLazy] to avoid holding the
+  /// full output list in memory while iterating (NFR-6).
   List<SatelliteTle> parseAll(
     String body, {
     DateTime? fetchedAt,
     bool verifyChecksum = true,
-  }) {
+  }) =>
+      parseAllLazy(
+        body,
+        fetchedAt: fetchedAt,
+        verifyChecksum: verifyChecksum,
+      ).toList();
+
+  /// Lazily parses a multi-record TLE body, yielding one [SatelliteTle] at a
+  /// time (NFR-6).
+  ///
+  /// Unlike [parseAll], this generator does not accumulate the full output
+  /// list in memory: each record is yielded as soon as it is parsed, allowing
+  /// callers to process or discard it before the next record is produced.
+  ///
+  /// Note: the input line buffer (`body.split('\n')`) is fully materialised
+  /// upfront so that the multiple-of-3 guard can run before any records are
+  /// yielded. The memory saving is therefore only the output list, not the
+  /// input.
+  ///
+  /// [body] must consist of non-empty lines in multiples of three.
+  /// Throws [TleParseException] if the record count is not a multiple of 3.
+  ///
+  /// The [ParseBenchmarkHook] injected at construction receives
+  /// [ParseBenchmarkHook.onParseStart] / [ParseBenchmarkHook.onParseEnd]
+  /// signals bracketing the full iteration (ADR-9).
+  Iterable<SatelliteTle> parseAllLazy(
+    String body, {
+    DateTime? fetchedAt,
+    bool verifyChecksum = true,
+  }) sync* {
     final resolvedFetchedAt = fetchedAt ?? DateTime.now().toUtc();
     final lines = body.split('\n').where((l) => l.trim().isNotEmpty).toList();
-    if (lines.isEmpty) return [];
+    if (lines.isEmpty) return;
     if (lines.length % 3 != 0) {
       throw TleParseException(
         'expected multiple of 3 non-empty lines, got ${lines.length}',
       );
     }
 
-    final result = <SatelliteTle>[];
-    for (var i = 0; i < lines.length; i += 3) {
-      result.add(
-        parse(
+    _hook.onParseStart(ParseBenchmarkHook.labelTle);
+    var count = 0;
+    final sw = Stopwatch()..start();
+    try {
+      for (var i = 0; i < lines.length; i += 3) {
+        yield parse(
           lines[i],
           lines[i + 1],
           lines[i + 2],
           fetchedAt: resolvedFetchedAt,
           verifyChecksum: verifyChecksum,
-        ),
-      );
+        );
+        count++;
+      }
+    } finally {
+      sw.stop();
+      _hook.onParseEnd(ParseBenchmarkHook.labelTle, count, sw.elapsed);
     }
-    return result;
   }
 }
 
