@@ -340,6 +340,41 @@ void main() {
       expect(ex.statusCode, 403);
     });
 
+    test(
+        'throws AuthenticationException on HTTP 401 from data fetch '
+        'after a prior successful login (session expiry)', () async {
+      // Login succeeds once; subsequent data requests return 401 to simulate
+      // session expiry. loginCount must be 1 to confirm no retry is attempted.
+      var loginCount = 0;
+      var dataCallCount = 0;
+      final client = _client(
+        (_) async {
+          dataCallCount++;
+          // First data call succeeds; second simulates session expiry.
+          if (dataCallCount == 1) return http.Response(_issGpFixture, 200);
+          return http.Response('Unauthorized', 401);
+        },
+        loginHandler: (_) async {
+          loginCount++;
+          return http.Response('', 200);
+        },
+      );
+
+      // First fetch establishes the session.
+      await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
+      expect(loginCount, 1);
+      expect(client.isLoggedIn, isTrue);
+
+      // Second fetch: session expired mid-session — 401 propagates as
+      // AuthenticationException without re-login attempt.
+      final ex = await _catchAuth(
+        () => client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
+      );
+
+      expect(ex.statusCode, 401);
+      expect(loginCount, 1, reason: 'login must not be retried automatically');
+    });
+
     test('throws RateLimitException on HTTP 429', () async {
       final client = _client(
         (_) async => http.Response('Too Many Requests', 429),
