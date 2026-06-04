@@ -15,6 +15,8 @@ import '../support/fixture_loader.dart';
 
 late String _nameIssOmmFixture;
 late String _nameIssTleFixture;
+late String _starlinkMultiOmmFixture;
+late String _starlinkMultiTleFixture;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,6 +68,10 @@ void main() {
   setUpAll(() async {
     _nameIssOmmFixture = await loadFixture('test/fixtures/name_iss_omm.json');
     _nameIssTleFixture = await loadFixture('test/fixtures/name_iss.txt');
+    _starlinkMultiOmmFixture =
+        await loadFixture('test/fixtures/starlink_multi_omm.json');
+    _starlinkMultiTleFixture =
+        await loadFixture('test/fixtures/starlink_multi.txt');
   });
 
   // ── Happy path ─────────────────────────────────────────────────────────────
@@ -568,6 +574,117 @@ void main() {
       );
 
       expect(calls, equals(1));
+    });
+  });
+
+  // ── Multi-result fetchByName (P4 / RK-4) ─────────────────────────────────
+
+  group('TleRepositoryImpl.fetchByName — multi-result (P4 RK-4)', () {
+    test('fetchByName returns multiple records when server returns >1 match',
+        () async {
+      final repo = _repo(
+        (_) async => http.Response(_starlinkMultiOmmFixture, 200),
+        tleHandler: (_) async => http.Response(_starlinkMultiTleFixture, 200),
+      );
+
+      final results = await repo.fetchByName(
+        'STARLINK',
+        format: CelestrakFormat.omm,
+        ttl: _defaultTtl,
+      );
+
+      expect(results.length, greaterThan(1));
+    });
+
+    test('all records in multi-result have expected noradIds', () async {
+      final repo = _repo(
+        (_) async => http.Response(_starlinkMultiOmmFixture, 200),
+        tleHandler: (_) async => http.Response(_starlinkMultiTleFixture, 200),
+      );
+
+      final results = await repo.fetchByName(
+        'STARLINK',
+        format: CelestrakFormat.omm,
+        ttl: _defaultTtl,
+      );
+      final noradIds = results.map((r) => r.noradId).toList();
+
+      expect(noradIds, unorderedEquals([44713, 44714, 44715]));
+    });
+
+    test('multi-result is cached — second call within TTL skips transport',
+        () async {
+      var calls = 0;
+      final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
+      final store = MemoryCacheStore();
+      final repo = _repo(
+        (_) async {
+          calls++;
+          return http.Response(_starlinkMultiOmmFixture, 200);
+        },
+        tleHandler: (_) async => http.Response(_starlinkMultiTleFixture, 200),
+        clock: clock,
+        store: store,
+      );
+
+      await repo.fetchByName(
+        'STARLINK',
+        format: CelestrakFormat.omm,
+        ttl: _defaultTtl,
+      );
+      clock.advance(const Duration(minutes: 30));
+      final cached = await repo.fetchByName(
+        'STARLINK',
+        format: CelestrakFormat.omm,
+        ttl: _defaultTtl,
+      );
+
+      expect(calls, equals(1));
+      expect(cached.length, greaterThan(1));
+    });
+
+    test('multi-result cache hit stamps source=local', () async {
+      final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
+      final store = MemoryCacheStore();
+      final repo = _repo(
+        (_) async => http.Response(_starlinkMultiOmmFixture, 200),
+        tleHandler: (_) async => http.Response(_starlinkMultiTleFixture, 200),
+        clock: clock,
+        store: store,
+      );
+
+      await repo.fetchByName(
+        'STARLINK',
+        format: CelestrakFormat.omm,
+        ttl: _defaultTtl,
+      );
+      clock.advance(const Duration(minutes: 30));
+      final cached = await repo.fetchByName(
+        'STARLINK',
+        format: CelestrakFormat.omm,
+        ttl: _defaultTtl,
+      );
+
+      for (final r in cached) {
+        expect(r.source, equals(TleSource.local));
+      }
+    });
+
+    test('multi-result TLE format returns records with null omm', () async {
+      final repo = _repo(
+        (_) async => http.Response(_starlinkMultiTleFixture, 200),
+      );
+
+      final results = await repo.fetchByName(
+        'STARLINK',
+        format: CelestrakFormat.tle,
+        ttl: _defaultTtl,
+      );
+
+      expect(results.length, greaterThan(1));
+      for (final r in results) {
+        expect(r.omm, isNull);
+      }
     });
   });
 }
