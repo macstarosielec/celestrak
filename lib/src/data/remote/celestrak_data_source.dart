@@ -119,8 +119,12 @@ final class CelestrakDataSource {
       format: format,
     );
 
-    // CelesTrak returns 404 (or 200 + sentinel) when no satellite matches
-    // the name query.  Both map to an empty result.
+    // CelesTrak returns HTTP 404 (or HTTP 200 + sentinel body) when no
+    // satellite matches a NAME= query. Both cases map to an empty-string
+    // result. This 404 suppression follows the documented CelesTrak GP API
+    // contract — it is not a general "ignore all 404s" policy. Other 4xx/5xx
+    // status codes (e.g. 400 Bad Request, 503 Service Unavailable) are still
+    // surfaced as NetworkException by the rethrow below.
     final String body;
     try {
       body = await _transport.get(uri);

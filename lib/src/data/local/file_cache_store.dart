@@ -33,17 +33,21 @@ final class FileCacheStore implements CacheStore {
 
   @override
   Future<Uint8List?> read(String key) async {
+    // Use EAFP rather than exists()-then-read to avoid the avoid_slow_async_io
+    // lint (FileSystemEntity.exists() uses the OS thread pool) and to eliminate
+    // the TOCTOU race between a check and the subsequent read.
     try {
-      final file = File(_dataPath(key));
-      if (!file.existsSync()) return null;
-      // Treat a missing .ts file as a torn write — return null.
-      final tsFile = File(_tsPath(key));
-      if (!tsFile.existsSync()) return null;
-      final bytes = await file.readAsBytes();
+      final bytes = await File(_dataPath(key)).readAsBytes();
       if (bytes.isEmpty) return null;
+      // Treat a missing .ts file as a torn write — return null.
+      // readAsString throws FileSystemException when the file is absent.
+      await File(_tsPath(key)).readAsString();
       return bytes;
+    } on FileSystemException {
+      // File absent or unreadable — treat as cache miss.
+      return null;
     } on Exception {
-      // Treat any I/O or format error as a cache miss.
+      // Treat any other I/O or format error as a cache miss.
       return null;
     }
   }
@@ -89,10 +93,10 @@ final class FileCacheStore implements CacheStore {
 
   @override
   Future<Duration?> age(String key, DateTime now) async {
+    // Use EAFP rather than exists()-then-read to avoid the avoid_slow_async_io
+    // lint and the TOCTOU race between a check and the subsequent read.
     try {
-      final tsFile = File(_tsPath(key));
-      if (!tsFile.existsSync()) return null;
-      final raw = await tsFile.readAsString();
+      final raw = await File(_tsPath(key)).readAsString();
       final ts = DateTime.parse(raw.trim());
       return now.difference(ts);
     } on Exception {
@@ -102,13 +106,23 @@ final class FileCacheStore implements CacheStore {
 
   @override
   Future<void> clear({String? keyPrefix}) async {
-    if (!directory.existsSync()) return;
+    // Use EAFP rather than directory.exists()-then-list to avoid the
+    // avoid_slow_async_io lint and a TOCTOU race. If the directory does not
+    // exist, list() throws a FileSystemException which we treat as "nothing to
+    // clear".
+    final List<FileSystemEntity> entities;
+    try {
+      entities = await directory.list().toList();
+    } on FileSystemException {
+      // Directory absent — nothing to clear.
+      return;
+    }
 
     // Collect all files and group them by stem (filename without extension).
     // Processing by stem ensures both .bin and .ts are always removed together,
     // preventing orphaned .ts files from returning stale age() values.
     final stems = <String>{};
-    for (final entity in directory.listSync()) {
+    for (final entity in entities) {
       if (entity is! File) continue;
       final name = entity.uri.pathSegments.last;
       final String? stem;
@@ -127,9 +141,15 @@ final class FileCacheStore implements CacheStore {
     }
 
     // Delete both files for each matching stem in parallel.
+    // Stems are already encoded (colons replaced with '-') — build paths
+    // directly from the directory without re-encoding to avoid a latent
+    // double-encode bug if _encode is ever extended.
     await Future.wait(
       stems.map((stem) async {
-        for (final path in [_dataPath(stem), _tsPath(stem)]) {
+        for (final path in [
+          '${directory.path}${Platform.pathSeparator}$stem.bin',
+          '${directory.path}${Platform.pathSeparator}$stem.ts',
+        ]) {
           try {
             await File(path).delete();
           } on Exception {

@@ -22,6 +22,7 @@ export 'src/client/celestrak_client.dart';
 export 'src/client/spacetrack_client.dart';
 export 'src/client/spacetrack_query.dart';
 export 'src/data/local/cache_key_builder.dart';
+export 'src/data/local/memory_cache_store.dart';
 export 'src/data/parsers/omm_parser.dart';
 export 'src/data/parsers/parse_benchmark_hook.dart';
 export 'src/data/parsers/tle_omm_stitcher.dart';

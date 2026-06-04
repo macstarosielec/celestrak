@@ -7,12 +7,10 @@
 /// They require an active internet connection and a reachable celestrak.org.
 /// Each test uses a fresh [MemoryCacheStore] so there are no cross-test
 /// cache side-effects and no on-disk files are written.
-// ignore_for_file: avoid_print
 @Tags(['integration'])
 library;
 
 import 'package:celestrak/celestrak.dart';
-import 'package:celestrak/src/data/local/memory_cache_store.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
