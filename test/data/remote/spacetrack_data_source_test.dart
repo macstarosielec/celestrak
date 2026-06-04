@@ -1,5 +1,5 @@
 import 'dart:async' show TimeoutException;
-import 'dart:io' show Directory, File, SocketException;
+import 'dart:io' show SocketException;
 
 import 'package:celestrak/src/data/remote/spacetrack_data_source.dart';
 import 'package:celestrak/src/domain/failures.dart';
@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 import '../../support/fake_clock.dart';
+import '../../support/fixture_loader.dart';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -76,11 +77,9 @@ Future<NetworkException> _catchNetwork(Future<void> Function() fn) async {
 
 void main() {
   setUpAll(() async {
-    // `dart test` sets the working directory to the package root, so
-    // Directory.current is a reliable anchor regardless of invocation path.
-    _issGpFixture = await File(
-      '${Directory.current.path}/test/fixtures/spacetrack_iss_25544_gp.json',
-    ).readAsString();
+    _issGpFixture = await loadFixture(
+      'test/fixtures/spacetrack_iss_25544_gp.json',
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -92,24 +91,40 @@ void main() {
       expect(kSpaceTrackBaseUrl, 'https://www.space-track.org');
     });
 
-    test('login path is /ajaxauth/login', () {
-      expect(kSpaceTrackLoginPath, '/ajaxauth/login');
-    });
-
-    test('data path is /basicspacedata/query', () {
-      expect(kSpaceTrackDataPath, '/basicspacedata/query');
-    });
-
-    test('GP class path is /class/gp', () {
-      expect(kSpaceTrackGpClassPath, '/class/gp');
-    });
-
-    test('format suffix is /format/json', () {
-      expect(kSpaceTrackJsonFormat, '/format/json');
-    });
-
     test('default min request interval is 2 seconds', () {
       expect(kDefaultMinRequestInterval, const Duration(seconds: 2));
+    });
+  });
+
+  group('SpaceTrackDataSource — constructor', () {
+    test('throws ArgumentError when baseUrl uses http scheme', () {
+      expect(
+        () => SpaceTrackDataSource(
+          client: http.Client(),
+          identity: 'user@example.com',
+          password: 'secret',
+          baseUrl: 'http://www.space-track.org',
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('HTTPS'),
+          ),
+        ),
+      );
+    });
+
+    test('accepts baseUrl with https scheme', () {
+      expect(
+        () => SpaceTrackDataSource(
+          client: http.Client(),
+          identity: 'user@example.com',
+          password: 'secret',
+          baseUrl: 'https://www.space-track.org',
+        ),
+        returnsNormally,
+      );
     });
   });
 
@@ -134,7 +149,7 @@ void main() {
 
       expect(
         capturedUri?.path,
-        kSpaceTrackLoginPath,
+        '/ajaxauth/login',
         reason: 'login must POST to /ajaxauth/login',
       );
       expect(
@@ -170,7 +185,7 @@ void main() {
       final ex = await _catchAuth(src.login);
 
       expect(ex.statusCode, 401);
-      expect(ex.uri?.path, kSpaceTrackLoginPath);
+      expect(ex.uri?.path, '/ajaxauth/login');
       expect(src.isLoggedIn, isFalse);
     });
 
@@ -204,6 +219,17 @@ void main() {
       expect(ex.cause, isA<SocketException>());
     });
 
+    test('throws NetworkException on TimeoutException', () async {
+      final src = _source(
+        (_) async => throw TimeoutException('login timed out'),
+      );
+
+      final ex = await _catchNetwork(src.login);
+
+      expect(ex.cause, isA<TimeoutException>());
+      expect(ex.uri?.path, '/ajaxauth/login');
+    });
+
     test('is idempotent — calling login twice does not throw', () async {
       final src = _source((_) async => http.Response('', 200));
 
@@ -231,8 +257,7 @@ void main() {
 
       expect(
         capturedUri?.path,
-        '$kSpaceTrackDataPath$kSpaceTrackGpClassPath'
-        '/NORAD_CAT_ID/25544$kSpaceTrackJsonFormat',
+        '/basicspacedata/query/class/gp/NORAD_CAT_ID/25544/format/json',
       );
     });
 
@@ -376,15 +401,53 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('SpaceTrackDataSource — rate limiting', () {
-    test('second request within interval waits for remainder', () async {
+    // The FakeClock does not affect Future.delayed wall time, so we use
+    // minRequestInterval: Duration.zero to keep tests fast while still
+    // verifying the _lastRequestAt bookkeeping logic via clock snapshots.
+
+    test('_lastRequestAt is stamped before the await (eager reservation)',
+        () async {
+      // Verify that the slot is reserved at the clock snapshot taken on entry,
+      // not after the (potential) sleep.  We do this by capturing the clock
+      // value recorded on the first call, then confirming the second call
+      // measures elapsed time from that snapshot (clock.now - T0 == 1 s,
+      // which is > Duration.zero interval, so no delay occurs).
+      final clock = FakeClock(DateTime.utc(2024, 1, 15, 12));
+      final callTimes = <DateTime>[];
+
+      final src = SpaceTrackDataSource(
+        client: MockClient((request) async {
+          callTimes.add(clock.now);
+          return http.Response(_issGpFixture, 200);
+        }),
+        identity: 'user@example.com',
+        password: 'password',
+        baseUrl: 'https://spacetrack.test',
+        minRequestInterval: Duration.zero,
+        timeout: const Duration(seconds: 5),
+        clock: clock,
+      );
+
+      // T0: first request stamps _lastRequestAt = T0.
+      await src.fetchByNoradId(25544);
+      final t0 = callTimes.first;
+
+      // T0+1s: second request — slot already reserved at T0, elapsed > 0.
+      clock.advance(const Duration(seconds: 1));
+      await src.fetchByNoradId(25544);
+
+      expect(callTimes, hasLength(2));
+      expect(callTimes[1].difference(t0), const Duration(seconds: 1));
+    });
+
+    test('second request beyond interval issues immediately (no delay)',
+        () async {
+      // Advance the clock past the interval between calls; confirms the
+      // no-delay path is taken when sufficient time has elapsed.
       final clock = FakeClock(DateTime.utc(2024, 1, 15, 12));
       const interval = Duration(seconds: 2);
       final callTimes = <DateTime>[];
 
-      // Use a Completer to synchronise the advance of the fake clock with
-      // the second request actually being issued (the delay is real-time, so
-      // we skip it by making the interval zero for the real sleep and just
-      // verify the last-request tracking logic instead).
       final src = SpaceTrackDataSource(
         client: MockClient((request) async {
           callTimes.add(clock.now);
@@ -398,14 +461,19 @@ void main() {
         clock: clock,
       );
 
-      // First request — no delay, records lastRequestAt = T0.
+      // First request at T0.
       await src.fetchByNoradId(25544);
 
-      // Advance clock by 3 s (> interval) — second request should not delay.
+      // Advance clock by 3 s (> 2 s interval) — second request takes no delay.
       clock.advance(const Duration(seconds: 3));
       await src.fetchByNoradId(25544);
 
       expect(callTimes, hasLength(2));
+      // The clock moved by 3 s between calls; elapsed exceeded interval.
+      expect(
+        callTimes[1].difference(callTimes[0]),
+        const Duration(seconds: 3),
+      );
     });
 
     test('minRequestInterval of zero issues requests without delay', () async {
