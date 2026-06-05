@@ -516,12 +516,18 @@ pulled in by this package.
 ## Web: memory-only cache
 
 On Flutter Web, `dart:io` is unavailable, so persistent file caching is not
-supported. The package automatically uses `MemoryCacheStore` on web: data is
-fetched and cached for the lifetime of the page, but nothing is written to
-disk and the cache is lost on reload.
+supported. The default `CelestrakClient` constructor unconditionally imports
+`dart:io` and **will not compile on web**. There is no automatic fallback.
+
+To use the package on Flutter Web, construct the client via
+`CelestrakClient.withStore` and pass a `MemoryCacheStore` (or any `CacheStore`
+implementation that does not rely on `dart:io`). Data is cached for the
+lifetime of the page but nothing is written to disk and the cache is lost on
+reload.
 
 If you need cross-session persistence on web, supply your own `CacheStore`
-implementation and pass it via `CelestrakClient.withStore`.
+implementation backed by `IndexedDB` or `localStorage` and pass it via
+`CelestrakClient.withStore`.
 
 ---
 
