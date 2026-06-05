@@ -103,9 +103,7 @@ void main() {
             final records =
                 await client.fetchCategory(SatelliteCategory.stations);
             expect(records, isNotEmpty);
-            for (final r in records) {
-              _assertValidRecord(r);
-            }
+            records.forEach(_assertValidRecord);
           } finally {
             client.dispose();
           }
@@ -123,9 +121,7 @@ void main() {
           try {
             final records = await client.fetchCategoryByGroup('stations');
             expect(records, isNotEmpty);
-            for (final r in records) {
-              _assertValidRecord(r);
-            }
+            records.forEach(_assertValidRecord);
           } finally {
             client.dispose();
           }
@@ -159,9 +155,7 @@ void main() {
           try {
             final records = await client.fetchByName('ISS');
             expect(records, isNotEmpty);
-            for (final r in records) {
-              _assertValidRecord(r);
-            }
+            records.forEach(_assertValidRecord);
           } finally {
             client.dispose();
           }
