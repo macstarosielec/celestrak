@@ -18,8 +18,8 @@ import 'package:celestrak/src/domain/satellite_tle.dart';
 final class TleParser {
   /// Creates a [TleParser].
   ///
-  /// [benchmarkHook] receives timing signals around multi-record parses
-  /// (ADR-9); defaults to [NullParseBenchmarkHook].
+  /// [benchmarkHook] receives timing signals around multi-record parses;
+  /// defaults to [NullParseBenchmarkHook].
   const TleParser({
     ParseBenchmarkHook benchmarkHook = const NullParseBenchmarkHook(),
   }) : _hook = benchmarkHook;
@@ -94,7 +94,7 @@ final class TleParser {
   ///
   /// The [ParseBenchmarkHook] injected at construction receives
   /// [ParseBenchmarkHook.onParseStart] / [ParseBenchmarkHook.onParseEnd]
-  /// signals bracketing the full iteration (ADR-9).
+  /// signals bracketing the full iteration.
   Iterable<SatelliteTle> parseAllLazy(
     String body, {
     DateTime? fetchedAt,

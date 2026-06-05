@@ -19,8 +19,8 @@ import 'package:celestrak/src/domain/omm.dart';
 final class OmmParser {
   /// Creates an [OmmParser].
   ///
-  /// [benchmarkHook] receives timing signals around multi-record parses
-  /// (ADR-9); defaults to [NullParseBenchmarkHook].
+  /// [benchmarkHook] receives timing signals around multi-record parses;
+  /// defaults to [NullParseBenchmarkHook].
   const OmmParser({
     ParseBenchmarkHook benchmarkHook = const NullParseBenchmarkHook(),
   }) : _hook = benchmarkHook;
@@ -77,7 +77,7 @@ final class OmmParser {
   ///
   /// The [ParseBenchmarkHook] injected at construction receives
   /// [ParseBenchmarkHook.onParseStart] / [ParseBenchmarkHook.onParseEnd]
-  /// signals bracketing the full iteration (ADR-9).
+  /// signals bracketing the full iteration.
   Iterable<Omm> parseAllLazy(
     List<Map<String, dynamic>> jsonList,
   ) sync* {

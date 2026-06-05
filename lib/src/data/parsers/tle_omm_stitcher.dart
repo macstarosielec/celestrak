@@ -1,4 +1,4 @@
-/// Dual-format TLE/OMM stitching (ADR-3).
+/// Dual-format TLE/OMM stitching.
 ///
 /// When CelesTrak data is fetched in OMM format the response carries rich
 /// CCSDS keywords but no verbatim TLE lines. Downstream SGP4 consumers
@@ -22,7 +22,7 @@ import 'package:celestrak/src/domain/satellite_tle.dart';
 ///
 /// [TleOmmStitcher] consumes both responses and produces a single
 /// [SatelliteTle] that carries the full [Omm] payload **and** the verbatim
-/// lines required by SGP4 propagators (ADR-3).
+/// lines required by SGP4 propagators.
 ///
 /// Usage:
 /// ```dart

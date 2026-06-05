@@ -8,7 +8,7 @@ final _validKey = RegExp(r'^[A-Za-z0-9:_\-~]+$');
 
 /// Defines the contract for all local cache implementations.
 ///
-/// Keys are opaque strings conforming to the ADR-8 naming scheme.
+/// Keys are opaque strings produced by `CacheKeyBuilder`.
 /// Implementations handle persistence, eviction, and concurrency safety.
 /// All operations resolve asynchronously.
 ///
@@ -24,9 +24,9 @@ abstract class CacheStore {
   ///
   /// Throws [ArgumentError] if [key] contains any character outside
   /// `[A-Za-z0-9:_\-~]`. The tilde character (`~`) is permitted as a
-  /// segment separator following the ADR-8 key scheme used by
-  /// `CacheKeyBuilder`; it is safe as a filename character on all target
-  /// platforms (Windows, Linux, macOS) and carries no path-traversal risk.
+  /// segment separator used by `CacheKeyBuilder`; it is safe as a filename
+  /// character on all target platforms (Windows, Linux, macOS) and carries no
+  /// path-traversal risk.
   static void validateKey(String key) {
     if (!_validKey.hasMatch(key)) {
       throw ArgumentError.value(

@@ -1,8 +1,7 @@
 /// HTTP transport with timeout, bounded retry/backoff, and HTTPS enforcement.
 ///
-/// Implements the transport reliability contract described in ADR-1: bounded
-/// retry with exponential backoff, HTTPS enforcement, and injectable
-/// http.Client.
+/// Implements a transport reliability contract: bounded retry with exponential
+/// backoff, HTTPS enforcement, and injectable http.Client.
 library;
 
 import 'dart:async';
@@ -45,7 +44,6 @@ const Duration kBackoffMax = Duration(seconds: 10);
 ///
 /// See also:
 /// - [NetworkException] — thrown when all retry attempts are exhausted.
-/// - ADR-1: injectable http.Client.
 final class HttpTransport {
   /// Creates an [HttpTransport].
   ///
