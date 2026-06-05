@@ -155,6 +155,8 @@ final class SpaceTrackClient {
           ownsClient: false,
         );
 
+  /// Private initialising constructor. Ownership tracking is expressed only
+  /// here; external callers cannot set [ownsClient].
   SpaceTrackClient._init({
     required http.Client client,
     required String? identity,
@@ -262,8 +264,15 @@ final class SpaceTrackClient {
   /// Each GP object includes `TLE_LINE1` and `TLE_LINE2` fields, so no
   /// secondary TLE request is needed (unlike the CelesTrak OMM flow).
   SatelliteTle _parseBody(String body, int noradId, DateTime fetchedAt) {
-    final list =
-        (jsonDecode(body) as List<dynamic>).cast<Map<String, dynamic>>();
+    final decoded = jsonDecode(body);
+    if (decoded is! List<dynamic>) {
+      throw OmmParseException(
+        'Space-Track returned an unexpected response format for NORAD ID '
+        '$noradId (expected a JSON array, got ${decoded.runtimeType})',
+        field: null,
+      );
+    }
+    final list = decoded.cast<Map<String, dynamic>>();
 
     if (list.isEmpty) {
       throw SatelliteNotFoundException(
@@ -279,8 +288,24 @@ final class SpaceTrackClient {
 
     final omm = _ommParser.parse(gpJson);
 
-    final line1 = gpJson['TLE_LINE1'] as String?;
-    final line2 = gpJson['TLE_LINE2'] as String?;
+    final raw1 = gpJson['TLE_LINE1'];
+    final raw2 = gpJson['TLE_LINE2'];
+    if (raw1 is! String?) {
+      throw OmmParseException(
+        'GP record for NORAD ID $noradId has unexpected type for TLE_LINE1: '
+        '${raw1.runtimeType}',
+        field: 'TLE_LINE1',
+      );
+    }
+    if (raw2 is! String?) {
+      throw OmmParseException(
+        'GP record for NORAD ID $noradId has unexpected type for TLE_LINE2: '
+        '${raw2.runtimeType}',
+        field: 'TLE_LINE2',
+      );
+    }
+    final line1 = raw1;
+    final line2 = raw2;
     if (line1 == null || line1.isEmpty) {
       throw OmmParseException(
         'GP record for NORAD ID $noradId is missing TLE_LINE1',

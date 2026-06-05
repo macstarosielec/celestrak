@@ -85,7 +85,12 @@ final class NetworkException extends CelestrakException {
 /// `"No GP data found"`, indicating that the requested NORAD catalog ID is
 /// not present in the CelesTrak database.
 ///
-/// [noradId] is the catalog number that was queried.
+/// [noradId] is the catalog number that was queried for per-object lookups.
+/// For group or category queries (e.g. fetchCategory or fetchCategoryByGroup),
+/// where no single catalog number applies, [noradId] is `0` — a sentinel
+/// value, not a real catalog number. Do not use [noradId] to determine what
+/// was queried in those contexts; inspect [uri] or [message] instead.
+///
 /// [uri] is the request URI.
 final class SatelliteNotFoundException extends CelestrakException {
   /// Creates a [SatelliteNotFoundException] for [noradId] at [uri].
@@ -95,7 +100,8 @@ final class SatelliteNotFoundException extends CelestrakException {
     this.uri,
   });
 
-  /// The NORAD catalog number that was not found.
+  /// The NORAD catalog number that was not found, or `0` when the exception
+  /// relates to a group or category query rather than a per-object lookup.
   final int noradId;
 
   /// The URI that returned the not-found sentinel.
@@ -202,6 +208,10 @@ final class TleParseException extends CelestrakException {
 /// entry for the requested key, or when a companion cache sub-key is
 /// independently evicted mid-read. No network request is ever made when
 /// `forceCache` is `true`.
+///
+/// Callers that encounter this exception from a `forceCache: true` request
+/// should retry the same fetch without `forceCache` to allow the library to
+/// refresh both sub-keys from the network.
 ///
 /// [key] is the cache key that was not found.
 final class CacheMissException extends CelestrakException {

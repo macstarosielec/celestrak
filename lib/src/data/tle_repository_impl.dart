@@ -1094,7 +1094,13 @@ final class TleRepositoryImpl implements TleRepository {
     if (fromCache) {
       final bytes = await _cacheStore.read(tleKey);
       if (bytes != null) return utf8.decode(bytes);
-      // TLE cache evicted; fall through to fetch.
+      // TLE sub-key was independently evicted while the OMM key survived.
+      // Honour the forceCache contract: no network call permitted.
+      throw CacheMissException(
+        'TLE sub-key evicted for NORAD ID $noradId; '
+        'retry without forceCache to refresh from the network.',
+        key: tleKey,
+      );
     }
 
     // Fetch and cache the TLE body.

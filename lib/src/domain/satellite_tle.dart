@@ -3,7 +3,7 @@
 /// Hand-written immutable value type. Designed to be forward-compatible with
 /// downstream consumers such as a planned `satellite_passes` package.
 ///
-/// See Also:
+/// See also:
 /// - [ADR-0010: hand-written models](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0010-hand-written-models.md)
 library;
 
