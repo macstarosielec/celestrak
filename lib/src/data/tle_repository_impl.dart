@@ -47,10 +47,19 @@ import 'package:celestrak/src/domain/tle_repository.dart';
 ///
 /// ## `allowStale` fallback
 ///
-/// When `allowStale` is `true` and the remote fetch throws any
-/// [Exception], the repository falls back to a stale cached entry if one
-/// exists. When no cached entry is available the original exception is
-/// re-thrown regardless of `allowStale`.
+/// When `allowStale` is `true` and the remote fetch throws any [Exception]
+/// that is not a `SatelliteNotFoundException`, the repository falls back to a
+/// stale cached entry if one exists. `SatelliteNotFoundException` is never
+/// masked — an unknown object is not a transient network failure.
+///
+/// [OmmParseException] and [TleParseException] are also never masked: a
+/// corrupt remote payload is not a transient error, so the stale cache would
+/// hide a data-quality problem.
+///
+/// This fallback applies to all five fetch methods: [fetchByNoradId],
+/// [fetchCategory], [fetchCategoryByGroup], [fetchByName], and
+/// [fetchByIntlDesignator]. When no cached entry is available the original
+/// exception is re-thrown regardless of `allowStale`.
 final class TleRepositoryImpl implements TleRepository {
   /// Creates a [TleRepositoryImpl].
   ///
@@ -94,7 +103,10 @@ final class TleRepositoryImpl implements TleRepository {
     try {
       return await _fetchAndCache(noradId, format, key, now);
     } on SatelliteNotFoundException {
-      // Not-found is never a transient network error; always propagate.
+      rethrow;
+    } on OmmParseException {
+      rethrow;
+    } on TleParseException {
       rethrow;
     } on Exception {
       if (allowStale && cacheAge != null) {
@@ -132,6 +144,12 @@ final class TleRepositoryImpl implements TleRepository {
 
     try {
       return await _fetchAndCacheCategory(category, format, key, now);
+    } on SatelliteNotFoundException {
+      rethrow;
+    } on OmmParseException {
+      rethrow;
+    } on TleParseException {
+      rethrow;
     } on Exception {
       if (allowStale && cacheAge != null) {
         return _readCategoryFromCache(category, format, key, now);
@@ -171,7 +189,10 @@ final class TleRepositoryImpl implements TleRepository {
     try {
       return await _fetchAndCacheGroup(group, format, key, now);
     } on SatelliteNotFoundException {
-      // Not-found is never a transient network error; always propagate.
+      rethrow;
+    } on OmmParseException {
+      rethrow;
+    } on TleParseException {
       rethrow;
     } on Exception {
       if (allowStale && cacheAge != null) {
@@ -308,6 +329,12 @@ final class TleRepositoryImpl implements TleRepository {
   /// Reads a cached payload and parses it into a [SatelliteTle].
   ///
   /// `source` is stamped as [TleSource.local] on the returned record.
+  ///
+  /// Throws [NetworkException] when the cache entry was evicted between the
+  /// [CacheStore.age] call and this [CacheStore.read] call (i.e. a concurrent
+  /// eviction race). Falling back to a live network call inside the stale
+  /// path would suppress the original failure with a new, unrelated exception,
+  /// so we surface a clear error instead.
   Future<SatelliteTle> _readFromCache(
     int noradId,
     CelestrakFormat format,
@@ -315,10 +342,13 @@ final class TleRepositoryImpl implements TleRepository {
     DateTime now,
   ) async {
     final bytes = await _cacheStore.read(key);
-    // If bytes were somehow evicted between age() and read(), fall through
-    // to the remote path by re-fetching.
+    // Cache entry evicted between age() and read() — throw rather than
+    // silently making a new network call that would hide the original error.
     if (bytes == null) {
-      return _fetchAndCache(noradId, format, key, now);
+      throw NetworkException(
+        'Cache entry for NORAD ID $noradId evicted before it could be read; '
+        'no stale fallback available.',
+      );
     }
 
     final body = utf8.decode(bytes);
@@ -425,6 +455,10 @@ final class TleRepositoryImpl implements TleRepository {
 
   /// Reads a cached category payload and parses it into a list of
   /// [SatelliteTle] records stamped with [TleSource.local].
+  ///
+  /// Throws [NetworkException] when the cache entry was evicted between the
+  /// [CacheStore.age] call and this [CacheStore.read] call (concurrent
+  /// eviction race). See [_readFromCache] for rationale.
   Future<List<SatelliteTle>> _readCategoryFromCache(
     SatelliteCategory category,
     CelestrakFormat format,
@@ -433,7 +467,10 @@ final class TleRepositoryImpl implements TleRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
-      return _fetchAndCacheCategory(category, format, key, now);
+      throw NetworkException(
+        'Cache entry for category ${category.group} evicted before it could '
+        'be read; no stale fallback available.',
+      );
     }
     final body = utf8.decode(bytes);
 
@@ -566,6 +603,10 @@ final class TleRepositoryImpl implements TleRepository {
 
   /// Reads a cached group payload and parses it into a list of [SatelliteTle]
   /// records stamped with [TleSource.local].
+  ///
+  /// Throws [NetworkException] when the cache entry was evicted between the
+  /// [CacheStore.age] call and this [CacheStore.read] call (concurrent
+  /// eviction race). See [_readFromCache] for rationale.
   Future<List<SatelliteTle>> _readGroupFromCache(
     String group,
     CelestrakFormat format,
@@ -574,7 +615,10 @@ final class TleRepositoryImpl implements TleRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
-      return _fetchAndCacheGroup(group, format, key, now);
+      throw NetworkException(
+        'Cache entry for group "$group" evicted before it could be read; '
+        'no stale fallback available.',
+      );
     }
     final body = utf8.decode(bytes);
 
@@ -654,6 +698,10 @@ final class TleRepositoryImpl implements TleRepository {
   /// records stamped with [TleSource.local].
   ///
   /// An empty cached payload (stored after a no-match response) returns `[]`.
+  ///
+  /// Throws [NetworkException] when the cache entry was evicted between the
+  /// [CacheStore.age] call and this [CacheStore.read] call (concurrent
+  /// eviction race). See [_readFromCache] for rationale.
   Future<List<SatelliteTle>> _readNameFromCache(
     String name,
     CelestrakFormat format,
@@ -662,7 +710,10 @@ final class TleRepositoryImpl implements TleRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
-      return _fetchAndCacheName(name, format, key, now);
+      throw NetworkException(
+        'Cache entry for name "$name" evicted before it could be read; '
+        'no stale fallback available.',
+      );
     }
     final body = utf8.decode(bytes);
     if (body.isEmpty) return [];
@@ -747,6 +798,10 @@ final class TleRepositoryImpl implements TleRepository {
   /// records stamped with [TleSource.local].
   ///
   /// An empty cached payload (stored after a no-match response) returns `[]`.
+  ///
+  /// Throws [NetworkException] when the cache entry was evicted between the
+  /// [CacheStore.age] call and this [CacheStore.read] call (concurrent
+  /// eviction race). See [_readFromCache] for rationale.
   Future<List<SatelliteTle>> _readIntlDesFromCache(
     String intlDesignator,
     CelestrakFormat format,
@@ -755,7 +810,10 @@ final class TleRepositoryImpl implements TleRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
-      return _fetchAndCacheIntlDes(intlDesignator, format, key, now);
+      throw NetworkException(
+        'Cache entry for international designator "$intlDesignator" evicted '
+        'before it could be read; no stale fallback available.',
+      );
     }
     final body = utf8.decode(bytes);
     if (body.isEmpty) return [];

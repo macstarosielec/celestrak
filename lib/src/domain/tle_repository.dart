@@ -69,6 +69,9 @@ abstract interface class TleRepository {
   /// When [allowStale] is `true` and the network request fails, returns
   /// a stale cached entry if one exists.
   ///
+  /// Throws [SatelliteNotFoundException] when the category group is not known
+  /// to CelesTrak. This exception is never masked by the `allowStale` fallback.
+  ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.
   Future<List<SatelliteTle>> fetchCategory(
