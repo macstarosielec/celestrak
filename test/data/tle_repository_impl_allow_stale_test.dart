@@ -1,9 +1,10 @@
-/// CEL-50: Finalize allowStale across all fetch methods (FR-18).
+/// CEL-51: allowStale fallback — stale-while-revalidate semantics (FR-17).
 ///
 /// Verifies:
 /// - network fail + allowStale:true → stale cache returned + isStale() true
 /// - allowStale:false + no fresh cache + no network → NetworkException
 /// - allowStale:true + no cache entry at all → NetworkException (re-throw)
+/// - SatelliteNotFoundException is never masked by the allowStale fallback
 /// - consistent behaviour across fetchByNoradId, fetchCategory,
 ///   fetchCategoryByGroup, fetchByName, fetchByIntlDesignator.
 library;
@@ -43,19 +44,22 @@ const _defaultTtl = Duration(hours: 2);
 // returned record's isStale() is true when using the default threshold.
 const _staleDuration = Duration(days: 4);
 
-/// Creates a [TleRepositoryImpl] with a [MockClient] and fresh
-/// [MemoryCacheStore].  [handler] receives all non-TLE requests; [tleHandler]
-/// intercepts `FORMAT=TLE` requests (defaults to [handler]).
+/// Creates a [TleRepositoryImpl] with a [MockClient] and a caller-supplied
+/// [MemoryCacheStore] and [FakeClock].
+///
+/// [handler] receives all non-TLE requests; [tleHandler] intercepts
+/// `FORMAT=TLE` requests (defaults to [handler]).
+///
+/// [clock] and [store] are required so that tests always operate on
+/// known, test-controlled instances — omitting them would silently create
+/// independent defaults and mask missing-cache-entry logic.
 TleRepositoryImpl _repo(
   MockClientHandler handler, {
+  required FakeClock clock,
+  required MemoryCacheStore store,
   MockClientHandler? tleHandler,
-  FakeClock? clock,
-  MemoryCacheStore? store,
   int maxAttempts = 1,
 }) {
-  final effectiveClock = clock ?? FakeClock(DateTime.utc(2026, 6, 1, 14));
-  final effectiveStore = store ?? MemoryCacheStore();
-
   return TleRepositoryImpl(
     dataSource: CelestrakDataSource(
       transport: HttpTransport(
@@ -71,8 +75,8 @@ TleRepositoryImpl _repo(
       ),
       baseUrl: _testBase,
     ),
-    cacheStore: effectiveStore,
-    clock: effectiveClock,
+    cacheStore: store,
+    clock: clock,
   );
 }
 
@@ -162,6 +166,8 @@ void main() {
         () async {
       final repo = _repo(
         (_) async => http.Response('server error', 503),
+        clock: FakeClock(DateTime.utc(2026, 6, 1, 14)),
+        store: MemoryCacheStore(),
       );
 
       await expectLater(
@@ -273,6 +279,8 @@ void main() {
         () async {
       final repo = _repo(
         (_) async => http.Response('server error', 503),
+        clock: FakeClock(DateTime.utc(2026, 6, 1, 14)),
+        store: MemoryCacheStore(),
       );
 
       await expectLater(
@@ -356,11 +364,41 @@ void main() {
         () async {
       final repo = _repo(
         (_) async => http.Response('server error', 503),
+        clock: FakeClock(DateTime.utc(2026, 6, 1, 14)),
+        store: MemoryCacheStore(),
       );
 
       await expectLater(
         repo.fetchCategoryByGroup('stations', allowStale: true),
         throwsA(isA<NetworkException>()),
+      );
+    });
+
+    test('allowStale:true does not suppress SatelliteNotFoundException',
+        () async {
+      final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
+      final store = MemoryCacheStore();
+      var notFound = false;
+      final repo = _repo(
+        (_) async {
+          if (notFound) return http.Response('No GP data found', 200);
+          return http.Response(_stationsOmmFixture, 200);
+        },
+        tleHandler: (_) async {
+          if (notFound) return http.Response('No GP data found', 200);
+          return http.Response(_stationsTleFixture, 200);
+        },
+        clock: clock,
+        store: store,
+      );
+
+      await repo.fetchCategoryByGroup('stations');
+      clock.advance(_defaultTtl + const Duration(seconds: 1));
+      notFound = true;
+
+      await expectLater(
+        repo.fetchCategoryByGroup('stations', allowStale: true),
+        throwsA(isA<SatelliteNotFoundException>()),
       );
     });
   });
@@ -436,6 +474,8 @@ void main() {
         () async {
       final repo = _repo(
         (_) async => http.Response('server error', 503),
+        clock: FakeClock(DateTime.utc(2026, 6, 1, 14)),
+        store: MemoryCacheStore(),
       );
 
       await expectLater(
@@ -443,6 +483,10 @@ void main() {
         throwsA(isA<NetworkException>()),
       );
     });
+    // Note: fetchByName data source converts the CelesTrak not-found sentinel
+    // to an empty string (not SatelliteNotFoundException), so that exception
+    // cannot be triggered via this path in tests. The guard in the repository
+    // is defensive for future parse paths.
   });
 
   // ── fetchByIntlDesignator
@@ -519,6 +563,8 @@ void main() {
         () async {
       final repo = _repo(
         (_) async => http.Response('server error', 503),
+        clock: FakeClock(DateTime.utc(2026, 6, 1, 14)),
+        store: MemoryCacheStore(),
       );
 
       await expectLater(
@@ -531,6 +577,8 @@ void main() {
         () async {
       final repo = _repo(
         (_) async => http.Response('server error', 503),
+        clock: FakeClock(DateTime.utc(2026, 6, 1, 14)),
+        store: MemoryCacheStore(),
       );
 
       await expectLater(
@@ -538,6 +586,10 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
     });
+    // Note: fetchByIntlDesignator data source converts the CelesTrak not-found
+    // sentinel to an empty string (not SatelliteNotFoundException), so that
+    // exception cannot be triggered via this path in tests. The guard in the
+    // repository is defensive for future parse paths.
   });
 
   // ── fetchByNoradId (TLE format)
