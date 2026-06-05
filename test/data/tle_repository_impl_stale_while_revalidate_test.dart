@@ -1,4 +1,4 @@
-/// CEL-51: Stale-while-revalidate semantics (FR-17).
+/// CEL-52: Stale-while-revalidate semantics (FR-17).
 ///
 /// Acceptance criteria verified here:
 ///   1. Refresh-on-success: TTL-expired + network OK → refresh cache and
@@ -43,12 +43,17 @@ const _testBase = 'https://celestrak.test/gp.php';
 final _t0 = DateTime.utc(2026, 6, 1, 14);
 
 /// Duration that advances the clock past TTL but NOT past the 3-day
-/// stale threshold, so [SatelliteTle.isStale] returns true only after
-/// advancing by [_staleOffset].
+/// stale threshold. [SatelliteTle.isStale] is driven by the orbital epoch
+/// age (not by fetchedAt or TTL), so advancing by _ttlOffset alone does
+/// NOT make the ISS fixture record stale — the fixture epoch is
+/// 2026-06-01T13:00:00Z, only 1 h before _t0, so the record is still well
+/// within 3 days after a 3 h advance.
 const _ttlOffset = Duration(hours: 3); // beyond _defaultTtl
 
-/// Duration that advances the clock past both TTL and the 3-day
-/// staleThreshold so [SatelliteTle.isStale] returns true.
+/// Duration that advances the clock far enough past the ISS fixture epoch
+/// (2026-06-01T13:00:00Z) for [SatelliteTle.isStale] to return true.
+/// Advancing by 4 days from _t0 (14:00 UTC) puts the clock at
+/// 2026-06-05T14:00Z — more than 3 days past the fixture epoch.
 const _staleOffset = Duration(days: 4);
 
 /// Creates a [TleRepositoryImpl] backed by a [MockClient] and a fresh
