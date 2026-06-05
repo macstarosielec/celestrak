@@ -187,6 +187,46 @@ files. They are released when the object is garbage-collected.
 
 ---
 
+## Rate limits and fair use
+
+> **CelesTrak only** — Space-Track uses a different mechanism (429 responses +
+> `minRequestInterval`); see the Throttling section above.
+
+CelesTrak has enforced a **one-download-per-update-cycle** policy since
+March 2026. Each group or category is updated roughly every two hours, so
+fetching the same dataset more than once per two-hour window violates the
+policy.
+
+This package respects that limit by default: the cache TTL (`defaultTtl`,
+backed by the `kDefaultTtl` constant) is **2 hours**, so repeated calls within
+the same update window are served from the local cache and produce no outbound
+request.
+
+**What happens if you exceed the limit.** CelesTrak does not return an HTTP
+error code. Instead, it adds your IP address to a firewall block-list when
+your IP address exceeds **100 MB of downloads per day**. Subsequent requests
+from that IP simply time out at the TCP level — they appear as connection
+timeouts or socket errors rather than as a 429 or 403 response.
+
+**If you start seeing connection timeouts against CelesTrak** and other sites
+are reachable, your IP is likely blocked. Options:
+
+- Wait and retry later (exact block duration is not publicly documented).
+- Switch to a different network (mobile hotspot, home broadband if you were
+  on a server, etc.).
+- Connect through a VPN to exit from a different IP.
+
+**To stay within the limit:**
+
+- Do not lower `defaultTtl` below 2 hours when fetching categories or groups.
+- Avoid fetching large categories (e.g. `SatelliteCategory.starlink`) in a
+  tight loop or from multiple concurrent processes sharing the same IP.
+- If you run multiple applications or scripts against CelesTrak from the same
+  host, point them all at a shared `cacheDir` so they read from one cached
+  copy rather than each fetching independently.
+
+---
+
 ## Flutter: supplying the cache directory
 
 This package has no `path_provider` dependency so it stays usable on
