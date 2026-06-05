@@ -110,6 +110,16 @@ void main() {
       await store.clear(keyPrefix: 'nomatch_');
       expect(await store.read('entry1'), isNotNull);
     });
+
+    test('clear() on non-existent directory is a no-op', () async {
+      // Delete the underlying directory to simulate a store that has never
+      // been written to on this machine.  clear() should return normally
+      // without throwing (exercises the FileSystemException catch branch).
+      await tmp.directory.delete(recursive: true);
+      await expectLater(store.clear(), completes);
+      // TempCache.tearDown() is a no-op when the directory is already gone —
+      // it guards deletion with existsSync() before proceeding.
+    });
   });
 
   group('FileCacheStore - resilience', () {
