@@ -237,9 +237,9 @@ final class TleRepositoryImpl implements TleRepository {
 
     try {
       return await _fetchAndCacheName(name, format, key, now);
+    } on SatelliteNotFoundException {
+      rethrow;
     } on OmmParseException {
-      // Parse errors indicate a corrupt remote payload, not a transient
-      // network failure; never mask them with a stale cache fallback.
       rethrow;
     } on TleParseException {
       rethrow;
@@ -292,9 +292,9 @@ final class TleRepositoryImpl implements TleRepository {
 
     try {
       return await _fetchAndCacheIntlDes(intlDesignator, format, key, now);
+    } on SatelliteNotFoundException {
+      rethrow;
     } on OmmParseException {
-      // Parse errors indicate a corrupt remote payload, not a transient
-      // network failure; never mask them with a stale cache fallback.
       rethrow;
     } on TleParseException {
       rethrow;
