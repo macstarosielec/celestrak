@@ -666,6 +666,49 @@ void main() {
       );
     });
   });
+
+  // ── SpaceTrackClient._parseBody ────────────────────────────────────────────
+
+  group(
+    'SpaceTrackClient._parseBody — non-array JSON body',
+    () {
+      test(
+        'throws OmmParseException when Space-Track returns a JSON object',
+        () async {
+          // Space-Track should always return a JSON array; an object indicates
+          // an unexpected API change or error payload.
+          const objectBody = '{"error": "something went wrong"}';
+          final client = _client(
+            (request) async => http.Response(objectBody, 200),
+          );
+          addTearDown(client.dispose);
+
+          await expectLater(
+            client.fetchByQuery(SpaceTrackQuery.byNoradId(25544)),
+            throwsA(isA<OmmParseException>()),
+          );
+        },
+      );
+
+      test(
+        'OmmParseException.field is null for unexpected JSON type',
+        () async {
+          const objectBody = '{"status": "error"}';
+          final client = _client(
+            (request) async => http.Response(objectBody, 200),
+          );
+          addTearDown(client.dispose);
+
+          try {
+            await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
+            fail('expected OmmParseException');
+          } on OmmParseException catch (e) {
+            expect(e.field, isNull);
+          }
+        },
+      );
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------
