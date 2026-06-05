@@ -207,7 +207,7 @@ void main() {
   group(
     'TleRepositoryImpl.fetchCategory — TLE format cache hit (source=local)',
     () {
-      test('cache hit on TLE format stamps source=local', () async {
+      test('fetchCategory TLE cache hit stamps source=local', () async {
         final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
         final store = MemoryCacheStore();
         final repo = _repo(
@@ -268,7 +268,7 @@ void main() {
   group(
     'TleRepositoryImpl.fetchCategoryByGroup — TLE format cache hit',
     () {
-      test('cache hit on TLE format stamps source=local', () async {
+      test('fetchCategoryByGroup TLE cache hit stamps source=local', () async {
         final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
         final store = MemoryCacheStore();
         final repo = _repo(
@@ -300,7 +300,7 @@ void main() {
   group(
     'TleRepositoryImpl.fetchByName — TLE format cache hit',
     () {
-      test('cache hit on TLE format stamps source=local', () async {
+      test('fetchByName TLE cache hit stamps source=local', () async {
         final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
         final store = MemoryCacheStore();
         final repo = _repo(
@@ -329,7 +329,7 @@ void main() {
   group(
     'TleRepositoryImpl.fetchByIntlDesignator — TLE format cache hit',
     () {
-      test('cache hit on TLE format stamps source=local', () async {
+      test('fetchByIntlDesignator TLE cache hit stamps source=local', () async {
         final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
         final store = MemoryCacheStore();
         final repo = _repo(
