@@ -13,3 +13,6 @@ pubspec.lock
 .idea/
 *.iml
 .vscode/
+
+# npm artefacts (not relevant to a Dart package)
+package-lock.json

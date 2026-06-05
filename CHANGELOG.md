@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Declared stable public API; no breaking changes from 0.1.0.
+- Declared stable public API; no breaking changes from 0.0.1.
 
-## [0.1.0] - 2026-06-05
+## [0.1.0] - UNRELEASED
 
 ### Added
 
@@ -182,6 +182,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial package scaffold.
 
-[1.0.0]: https://github.com/macstarosielec/celestrak/compare/v0.1.0...v1.0.0
+[1.0.0]: https://github.com/macstarosielec/celestrak/compare/v0.0.1...v1.0.0
 [0.1.0]: https://github.com/macstarosielec/celestrak/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/macstarosielec/celestrak/releases/tag/v0.0.1
