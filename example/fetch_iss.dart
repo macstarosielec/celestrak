@@ -38,7 +38,7 @@ Future<void> main() async {
     cacheDir: '.dart_tool/celestrak_cache',
     defaultFormat: CelestrakFormat.omm,
     timeout: const Duration(seconds: 10),
-    maxRetries: 2,
+    maxAttempts: 2,
   );
 
   try {

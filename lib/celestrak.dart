@@ -1,36 +1,97 @@
 /// A pure-Dart client for fetching, parsing, and caching satellite TLE and OMM
 /// orbital data from CelesTrak and Space-Track.
 ///
-/// Core types:
-/// - `SatelliteTle` — the primary orbital record consumed by downstream
-///   packages such as `satellite_passes`.
-/// - `Omm` — full CCSDS Orbit Mean-Elements Message, present when data is
+/// ## Quick start
+///
+/// ```dart
+/// final client = CelestrakClient(cacheDir: '/tmp/celestrak');
+/// try {
+///   final iss = await client.fetchByNoradId(25544);
+///   print('${iss.name} epoch=${iss.epoch} stale=${client.isStale(iss)}');
+/// } finally {
+///   client.dispose();
+/// }
+/// ```
+///
+/// ## Core types
+///
+/// - [CelestrakClient] — high-level facade; covers `fetchByNoradId`,
+///   `fetchCategory`, `fetchCategoryByGroup`, `fetchByName`,
+///   `fetchByIntlDesignator`, cache-age inspection, and `clearCache`.
+///   Constructor parameters: `defaultTtl`, `defaultFormat`, `timeout`,
+///   `maxAttempts`, `staleThreshold`, `clock`, `useIsolate` (offloads
+///   multi-record category parses to a worker isolate via `Isolate.run`,
+///   keeping the main isolate free during large responses such as Starlink).
+/// - [SpaceTrackClient] — credentialed Space-Track.org facade.
+/// - [SpaceTrackQuery] — value object describing a Space-Track query.
+/// - [SatelliteTle] — the primary orbital record; carries `line1`/`line2`,
+///   `epoch`, `source`, `fetchedAt`, `omm`, and computed `age`/`isStale`.
+/// - [Omm] — full CCSDS Orbit Mean-Elements Message, present when data is
 ///   fetched in OMM format.
-/// - `OmmParser` — parses CelesTrak OMM JSON into `Omm` values.
-/// - `SatelliteCategory`, `TleSource`, `CelestrakFormat` — enumerations for
+/// - [OmmParser] — parses CelesTrak OMM JSON into [Omm] values; exposed for
+///   advanced callers who process raw CelesTrak responses directly.
+/// - [SatelliteCategory], [TleSource], [CelestrakFormat] — enumerations for
 ///   category queries, record provenance, and wire format selection.
-/// - `CelestrakException` and subtypes (`AuthenticationException`,
-///   `NetworkException`, `OmmParseException`, `RateLimitException`,
-///   `SatelliteNotFoundException`, `TleParseException`) — typed error
-///   hierarchy; no raw `http` or `dart:io` exception escapes the public API.
-/// - `Clock` / `SystemClock` — injectable time source for TTL and staleness.
-/// - `StalenessChecker` — classifies orbital data freshness against a
-///   configurable `defaultStaleThreshold`.
+/// - [CelestrakException] and subtypes ([AuthenticationException],
+///   [CacheMissException], [NetworkException], [OmmParseException],
+///   [RateLimitException], [SatelliteNotFoundException], [TleParseException])
+///   — typed error hierarchy; no raw `http` or `dart:io` exception escapes
+///   the public API.
+/// - [TleRepository] — abstract repository interface; implement to provide
+///   a custom cache/fetch/parse pipeline.
+/// - [CacheStore] — abstract interface for key-value byte caching; pass a
+///   custom implementation to [CelestrakClient.withStore].
+/// - [MemoryCacheStore] — in-memory [CacheStore] for testing and short-lived
+///   caches.
+/// - [Clock] / [SystemClock] — injectable time source for TTL and staleness.
+/// - [StalenessChecker] — classifies orbital data freshness against a
+///   configurable [defaultStaleThreshold].
+/// - [ParseBenchmarkHook] / [NullParseBenchmarkHook] — extension point for
+///   measuring parse duration in large category responses.
+///
+/// ## Configuration constants
+///
+/// - [kDefaultTtl] — default cache TTL (2 hours).
+/// - [kDefaultMaxAttempts] — default total HTTP attempts (5).
+/// - [kDefaultTimeout] — default per-attempt HTTP deadline (30 seconds).
 library;
+
+// These imports make the type names in the library doc comment above
+// resolvable by the analyzer's comment_references lint. The `export`
+// directives below are the authoritative public-API surface; these imports
+// are only required for doc-comment reference resolution in this file.
+import 'package:celestrak/src/client/celestrak_client.dart';
+import 'package:celestrak/src/client/spacetrack_client.dart';
+import 'package:celestrak/src/client/spacetrack_query.dart';
+import 'package:celestrak/src/data/local/cache_store.dart';
+import 'package:celestrak/src/data/local/memory_cache_store.dart';
+import 'package:celestrak/src/data/parsers/omm_parser.dart';
+import 'package:celestrak/src/data/parsers/parse_benchmark_hook.dart';
+import 'package:celestrak/src/domain/clock.dart';
+import 'package:celestrak/src/domain/constants.dart';
+import 'package:celestrak/src/domain/enums.dart';
+import 'package:celestrak/src/domain/failures.dart';
+import 'package:celestrak/src/domain/omm.dart';
+import 'package:celestrak/src/domain/satellite_tle.dart';
+import 'package:celestrak/src/domain/staleness.dart';
+import 'package:celestrak/src/domain/tle_repository.dart';
+import 'package:celestrak/src/network/http_transport.dart'
+    hide HttpTransport, kBackoffBase, kBackoffMax;
 
 export 'src/client/celestrak_client.dart';
 export 'src/client/spacetrack_client.dart';
 export 'src/client/spacetrack_query.dart';
-export 'src/data/local/cache_key_builder.dart';
+export 'src/data/local/cache_store.dart';
 export 'src/data/local/memory_cache_store.dart';
 export 'src/data/parsers/omm_parser.dart';
 export 'src/data/parsers/parse_benchmark_hook.dart';
-export 'src/data/parsers/tle_omm_stitcher.dart';
 export 'src/domain/clock.dart';
+export 'src/domain/constants.dart';
 export 'src/domain/enums.dart';
 export 'src/domain/failures.dart';
 export 'src/domain/omm.dart';
 export 'src/domain/satellite_tle.dart';
 export 'src/domain/staleness.dart';
 export 'src/domain/tle_repository.dart';
-export 'src/network/http_transport.dart';
+export 'src/network/http_transport.dart'
+    hide HttpTransport, kBackoffBase, kBackoffMax;

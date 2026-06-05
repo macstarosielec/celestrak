@@ -25,7 +25,7 @@ const _timeout = Duration(seconds: 30);
 CelestrakClient _liveClient() => CelestrakClient.withStore(
       httpClient: http.Client(),
       cacheStore: MemoryCacheStore(),
-      maxRetries: 2,
+      maxAttempts: 2,
     );
 
 /// Asserts the core invariants that every [SatelliteTle] must satisfy.

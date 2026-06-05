@@ -29,7 +29,7 @@ CelestrakClient _client(
   MockClientHandler? tleHandler,
   FakeClock? clock,
   MemoryCacheStore? store,
-  int maxRetries = 1,
+  int maxAttempts = 1,
   Duration defaultTtl = const Duration(hours: 2),
   CelestrakFormat defaultFormat = CelestrakFormat.omm,
   Duration staleThreshold = const Duration(days: 3),
@@ -55,7 +55,7 @@ CelestrakClient _client(
     defaultFormat: defaultFormat,
     staleThreshold: staleThreshold,
     clock: effectiveClock,
-    maxRetries: maxRetries,
+    maxAttempts: maxAttempts,
     timeout: timeout,
   );
 }
@@ -174,8 +174,8 @@ void main() {
       expect(client.timeout, equals(const Duration(seconds: 5)));
     });
 
-    test('maxRetries defaults to kDefaultMaxAttempts', () {
-      // Construct without specifying maxRetries to verify the default is used.
+    test('maxAttempts defaults to kDefaultMaxAttempts', () {
+      // Construct without specifying maxAttempts to verify the default is used.
       // The _client helper's own default is 1, so we bypass it and construct
       // CelestrakClient.withStore directly.
       final rawClient = http.Client();
@@ -185,26 +185,26 @@ void main() {
         cacheStore: MemoryCacheStore(),
       );
 
-      expect(client.maxRetries, equals(kDefaultMaxAttempts));
+      expect(client.maxAttempts, equals(kDefaultMaxAttempts));
     });
 
-    test('custom maxRetries is preserved', () {
+    test('custom maxAttempts is preserved', () {
       final client = _client(
         (_) async => http.Response('', 200),
-        maxRetries: 3,
+        maxAttempts: 3,
       );
 
-      expect(client.maxRetries, equals(3));
+      expect(client.maxAttempts, equals(3));
     });
 
-    test('maxRetries: 0 throws ArgumentError', () {
+    test('maxAttempts: 0 throws ArgumentError', () {
       final rawClient = http.Client();
       addTearDown(rawClient.close);
       expect(
         () => CelestrakClient.withStore(
           httpClient: rawClient,
           cacheStore: MemoryCacheStore(),
-          maxRetries: 0,
+          maxAttempts: 0,
         ),
         throwsA(isA<ArgumentError>()),
       );
@@ -412,7 +412,7 @@ void main() {
     test('NetworkException propagates on transport error', () async {
       final client = _client(
         (_) async => http.Response('server error', 503),
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       await expectLater(
@@ -424,7 +424,7 @@ void main() {
     test('NetworkException.statusCode is set on HTTP error response', () async {
       final client = _client(
         (_) async => http.Response('server error', 503),
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       try {
@@ -445,16 +445,16 @@ void main() {
     });
   });
 
-  // ── maxRetries behaviour ──────────────────────────────────────────────────
+  // ── maxAttempts behaviour ──────────────────────────────────────────────────
   //
   // These tests drive the real HttpTransport with a failing handler. The
   // transport applies exponential backoff between attempts (~600 ms total for
-  // maxRetries:3), so they are intentionally tagged with a generous timeout to
+  // maxAttempts:3), so they are intentionally tagged with a generous timeout to
   // avoid flakiness on slow CI runners.
 
-  group('CelestrakClient — maxRetries behaviour', () {
+  group('CelestrakClient — maxAttempts behaviour', () {
     test(
-      'maxRetries:3 results in exactly 3 HTTP attempts on 503',
+      'maxAttempts:3 results in exactly 3 HTTP attempts on 503',
       () async {
         var calls = 0;
         final client = _client(
@@ -462,7 +462,7 @@ void main() {
             calls++;
             return http.Response('server error', 503);
           },
-          maxRetries: 3,
+          maxAttempts: 3,
         );
 
         await expectLater(
@@ -476,7 +476,7 @@ void main() {
     );
 
     test(
-      'maxRetries:1 results in exactly 1 HTTP attempt on 503',
+      'maxAttempts:1 results in exactly 1 HTTP attempt on 503',
       () async {
         var calls = 0;
         final client = _client(
@@ -484,7 +484,7 @@ void main() {
             calls++;
             return http.Response('server error', 503);
           },
-          maxRetries: 1,
+          maxAttempts: 1,
         );
 
         await expectLater(
@@ -516,7 +516,7 @@ void main() {
         },
         clock: clock,
         store: store,
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       await client.fetchByNoradId(25544);
@@ -545,7 +545,7 @@ void main() {
         },
         clock: clock,
         store: store,
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       await client.fetchByNoradId(25544);

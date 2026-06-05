@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:celestrak/celestrak.dart';
+import 'package:celestrak/src/data/parsers/tle_omm_stitcher.dart';
 import 'package:test/test.dart';
 
 // ---------------------------------------------------------------------------

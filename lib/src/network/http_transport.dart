@@ -11,8 +11,6 @@ import 'dart:math' as math;
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:http/http.dart' as http;
 
-export 'package:celestrak/src/domain/constants.dart' show kDefaultTtl;
-
 /// Default maximum number of attempts (1 initial + 4 retries).
 const int kDefaultMaxAttempts = 5;
 

@@ -59,7 +59,7 @@ Future<void> main() async {
     cacheDir: '.dart_tool/celestrak_cache_stale',
     defaultFormat: CelestrakFormat.omm,
     timeout: const Duration(seconds: 15),
-    maxRetries: 2,
+    maxAttempts: 2,
     // A 1-second TTL ages out the cache entry almost immediately.  Note that
     // reading from the stale cache (with allowStale: true) does NOT reset the
     // TTL or write a new cache entry — the next call without allowStale will

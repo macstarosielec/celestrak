@@ -56,7 +56,7 @@ CelestrakClient _client(
     httpClient: mockClient,
     cacheStore: effectiveStore,
     clock: clock,
-    maxRetries: 1,
+    maxAttempts: 1,
     useIsolate: useIsolate,
   );
 }
