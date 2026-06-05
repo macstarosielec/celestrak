@@ -1,4 +1,4 @@
-/// CEL-51: allowStale fallback — stale-while-revalidate semantics (FR-17).
+/// CEL-52: allowStale fallback — stale-while-revalidate semantics (FR-17).
 ///
 /// Verifies:
 /// - network fail + allowStale:true → stale cache returned + isStale() true
@@ -376,6 +376,12 @@ void main() {
 
     test('allowStale:true does not suppress SatelliteNotFoundException',
         () async {
+      // Note: unlike fetchByName/fetchByIntlDesignator (which return an empty
+      // string for the not-found sentinel), CelestrakDataSource.fetchByGroup
+      // throws SatelliteNotFoundException directly when the sentinel body is
+      // received. This test therefore exercises a real, reachable code path —
+      // the SatelliteNotFoundException guard in fetchCategoryByGroup is not
+      // merely defensive.
       final clock = FakeClock(DateTime.utc(2026, 6, 1, 14));
       final store = MemoryCacheStore();
       var notFound = false;
