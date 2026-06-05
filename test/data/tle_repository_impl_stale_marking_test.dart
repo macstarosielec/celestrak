@@ -10,9 +10,9 @@
 ///   3. A cache-hit record that is older than `staleThreshold` is NEVER
 ///      returned as if it were fresh (`source` remains `local`, `isStale`
 ///      remains `true`) — directly mitigating RK-7 silent-stale.
-///   4. All five fetch methods are exercised: [fetchByNoradId],
-///      [fetchCategory], [fetchCategoryByGroup], [fetchByName], and
-///      [fetchByIntlDesignator].
+///   4. All five fetch methods are exercised: fetchByNoradId,
+///      fetchCategory, fetchCategoryByGroup, fetchByName, and
+///      fetchByIntlDesignator.
 library;
 
 import 'package:celestrak/celestrak.dart';
@@ -53,10 +53,6 @@ final _issEpoch = DateTime.utc(2026, 6, 1, 13, 0, 0, 0, 288);
 
 /// Clock starts 1 hour after the ISS epoch so the data is fresh by default.
 final _t0 = _issEpoch.add(const Duration(hours: 1));
-
-/// Advance past TTL but NOT past staleThreshold — cache is stale, orbital
-/// data is still within the 3-day threshold.
-const _ttlExpiredOffset = Duration(hours: 3);
 
 /// Advance past BOTH TTL and the 3-day staleThreshold so isStale() is true.
 const _epochStaleOffset = Duration(days: 4);
