@@ -225,11 +225,18 @@ final class CelestrakClient {
   /// When [allowStale] is `true` and the network request fails, the
   /// repository returns a stale cached entry if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [SatelliteNotFoundException] when the object is not in the
   /// CelesTrak catalog and no usable cache entry exists.
   ///
   /// Throws [NetworkException] on transport failure when no cached entry is
   /// available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   ///
   /// Throws [ArgumentError] if [noradId] is less than 1.
   Future<SatelliteTle> fetchByNoradId(
@@ -237,12 +244,14 @@ final class CelestrakClient {
     CelestrakFormat? format,
     Duration? ttl,
     bool allowStale = false,
+    bool forceCache = false,
   }) =>
       _repository.fetchByNoradId(
         noradId,
         format: format ?? _defaultFormat,
         ttl: ttl ?? _defaultTtl,
         allowStale: allowStale,
+        forceCache: forceCache,
       );
 
   /// Fetches all [SatelliteTle] records for a [SatelliteCategory].
@@ -260,19 +269,28 @@ final class CelestrakClient {
   /// When [allowStale] is `true` and the network request fails, the
   /// repository returns a stale cached list if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [NetworkException] on transport failure when no cached entry is
   /// available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   Future<List<SatelliteTle>> fetchCategory(
     SatelliteCategory category, {
     CelestrakFormat? format,
     Duration? ttl,
     bool allowStale = false,
+    bool forceCache = false,
   }) =>
       _repository.fetchCategory(
         category,
         format: format ?? _defaultFormat,
         ttl: ttl ?? _defaultTtl,
         allowStale: allowStale,
+        forceCache: forceCache,
       );
 
   /// Fetches all [SatelliteTle] records for an arbitrary CelesTrak group
@@ -294,11 +312,18 @@ final class CelestrakClient {
   /// When [allowStale] is `true` and the network request fails, the
   /// repository returns a stale cached list if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [SatelliteNotFoundException] when the group name is not known to
   /// CelesTrak. This exception is never masked by the `allowStale` fallback.
   ///
   /// Throws [NetworkException] on transport failure when no cached entry is
   /// available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   ///
   /// Throws [ArgumentError] if [group] is empty.
   Future<List<SatelliteTle>> fetchCategoryByGroup(
@@ -306,12 +331,14 @@ final class CelestrakClient {
     CelestrakFormat? format,
     Duration? ttl,
     bool allowStale = false,
+    bool forceCache = false,
   }) =>
       _repository.fetchCategoryByGroup(
         group,
         format: format ?? _defaultFormat,
         ttl: ttl ?? _defaultTtl,
         allowStale: allowStale,
+        forceCache: forceCache,
       );
 
   /// Fetches all [SatelliteTle] records whose name contains [name].
@@ -332,8 +359,15 @@ final class CelestrakClient {
   /// When [allowStale] is `true` and the network request fails, the
   /// repository returns a stale cached list if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [NetworkException] on transport failure when no cached entry is
   /// available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   ///
   /// Throws [ArgumentError] if [name] is empty.
   Future<List<SatelliteTle>> fetchByName(
@@ -341,12 +375,14 @@ final class CelestrakClient {
     CelestrakFormat? format,
     Duration? ttl,
     bool allowStale = false,
+    bool forceCache = false,
   }) =>
       _repository.fetchByName(
         name,
         format: format ?? _defaultFormat,
         ttl: ttl ?? _defaultTtl,
         allowStale: allowStale,
+        forceCache: forceCache,
       );
 
   /// Fetches all [SatelliteTle] records matching an international designator.
@@ -366,8 +402,15 @@ final class CelestrakClient {
   /// When [allowStale] is `true` and the network request fails, the repository
   /// returns a stale cached list if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [NetworkException] on transport failure when no cached entry is
   /// available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   ///
   /// Throws [ArgumentError] when [intlDesignator] is malformed.
   Future<List<SatelliteTle>> fetchByIntlDesignator(
@@ -375,12 +418,14 @@ final class CelestrakClient {
     CelestrakFormat? format,
     Duration? ttl,
     bool allowStale = false,
+    bool forceCache = false,
   }) =>
       _repository.fetchByIntlDesignator(
         intlDesignator,
         format: format ?? _defaultFormat,
         ttl: ttl ?? _defaultTtl,
         allowStale: allowStale,
+        forceCache: forceCache,
       );
 
   /// Returns the current cache age for the entry keyed to [intlDesignator].
