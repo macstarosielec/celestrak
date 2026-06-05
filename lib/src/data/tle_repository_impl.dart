@@ -780,7 +780,7 @@ final class TleRepositoryImpl implements TleRepository {
         if (tleBytes == null) {
           throw CacheMissException(
             'TLE cache entry for group "$group" evicted before it could be'
-                ' read.',
+            ' read.',
             key: tleKey,
           );
         }

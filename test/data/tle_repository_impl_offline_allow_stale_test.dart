@@ -762,9 +762,8 @@ void main() {
       await expectLater(
         repo.fetchCategory(SatelliteCategory.stations, allowStale: true),
         throwsA(isA<NetworkException>()),
-        reason:
-            'allowStale with no cache entry must re-throw NetworkException'
-                ' not crash',
+        reason: 'allowStale with no cache entry must re-throw NetworkException'
+            ' not crash',
       );
     });
   });
