@@ -84,11 +84,7 @@ void main() {
         ];
         final emitted = <Omm>[];
         expect(
-          () {
-            for (final omm in parser.parseAllLazy(mixed)) {
-              emitted.add(omm);
-            }
-          },
+          () => parser.parseAllLazy(mixed).forEach(emitted.add),
           throwsA(isA<OmmParseException>()),
         );
         // The first (good) record was already yielded before the exception.

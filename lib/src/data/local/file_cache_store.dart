@@ -78,7 +78,7 @@ final class FileCacheStore implements CacheStore {
       await tmpTs.writeAsString(writtenAt.toIso8601String());
       await tmpData.rename(_dataPath(key));
       await tmpTs.rename(_tsPath(key));
-    } catch (_) {
+    } on Object catch (_) {
       // Clean up any surviving .tmp files on partial failure.
       for (final tmp in [tmpData, tmpTs]) {
         try {

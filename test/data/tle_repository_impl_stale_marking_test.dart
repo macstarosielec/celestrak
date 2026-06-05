@@ -52,7 +52,7 @@ const _defaultTtl = Duration(hours: 2);
 final _issEpoch = DateTime.utc(2026, 6, 1, 13, 0, 0, 0, 288);
 
 /// Clock starts 1 hour after the ISS epoch so the data is fresh by default.
-final _t0 = _issEpoch.add(const Duration(hours: 1));
+final DateTime _t0 = _issEpoch.add(const Duration(hours: 1));
 
 /// Advance past BOTH TTL and the 3-day staleThreshold so isStale() is true.
 const _epochStaleOffset = Duration(days: 4);

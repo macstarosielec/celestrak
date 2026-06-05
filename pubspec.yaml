@@ -13,6 +13,15 @@ topics:
   - omm
   - orbital
   - celestrak
+  - space
+
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
+  web:
 
 environment:
   sdk: ^3.4.0

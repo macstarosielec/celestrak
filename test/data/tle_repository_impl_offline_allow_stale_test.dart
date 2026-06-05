@@ -816,7 +816,7 @@ void main() {
       try {
         await repo.fetchCategory(SatelliteCategory.stations, forceCache: true);
         fail('expected CacheMissException');
-      } catch (e) {
+      } on Object catch (e) {
         expect(
           e,
           isA<CelestrakException>(),
