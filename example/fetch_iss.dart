@@ -1,13 +1,39 @@
-/// Quick smoke-test: fetches live ISS data from CelesTrak and prints it.
+/// Fetch a single satellite by NORAD ID.
+///
+/// This program fetches the ISS (NORAD 25544) from CelesTrak, prints its
+/// orbital elements, then shows that a second call within the TTL is served
+/// from the local cache.  A second satellite (Hubble, NORAD 20580) is fetched
+/// in legacy TLE format to show format switching.
 ///
 /// Run from the package root:
-///   dart example/fetch_iss.dart
+///
+/// ```sh
+/// dart example/fetch_iss.dart
+/// ```
+///
+/// ## Example
+///
+/// ```dart
+/// import 'package:celestrak/celestrak.dart';
+///
+/// final client = CelestrakClient(
+///   cacheDir: '.dart_tool/celestrak_cache',
+///   defaultFormat: CelestrakFormat.omm,
+///   timeout: const Duration(seconds: 10),
+/// );
+/// try {
+///   final iss = await client.fetchByNoradId(25544);
+///   print('${iss.name} — epoch: ${iss.epoch}');
+/// } finally {
+///   client.dispose();
+/// }
+/// ```
 // ignore_for_file: avoid_print
 library;
 
 import 'package:celestrak/celestrak.dart';
 
-void main() async {
+Future<void> main() async {
   final client = CelestrakClient(
     cacheDir: '.dart_tool/celestrak_cache',
     defaultFormat: CelestrakFormat.omm,
@@ -30,9 +56,12 @@ void main() async {
     print('TLE line 2  : ${iss.line2}');
 
     print('');
-    print('Fetching again (should be cache hit)...');
+    print('Fetching again (should be a cache hit)...');
     final iss2 = await client.fetchByNoradId(25544);
-    print('Source      : ${iss2.source}  ← should be TleSource.local');
+    final cacheHit = iss2.source == TleSource.local
+        ? 'cache hit (correct)'
+        : 'WARNING: expected cache hit, got ${iss2.source}';
+    print('Source      : ${iss2.source}  — $cacheHit');
 
     print('');
     print('Fetching Hubble (NORAD 20580) in TLE format...');
