@@ -1,9 +1,10 @@
 # celestrak
 
 A pure-Dart client for fetching, parsing, and caching satellite **TLE** and
-**OMM** orbital data from [CelesTrak](https://celestrak.org).
+**OMM** orbital data from [CelesTrak](https://celestrak.org) and optionally
+[Space-Track](https://www.space-track.org).
 
-No Flutter dependency — works on the Dart VM, servers, and Flutter alike.
+No Flutter dependency - works on the Dart VM, servers, and Flutter alike.
 
 ---
 
@@ -15,10 +16,10 @@ check `client.isStale(tle)` before acting on propagated results, and
 refresh data when it is stale.
 
 ```dart
-// client is a CelestrakClient — see the quickstart below.
+// client is a CelestrakClient - see the quickstart below.
 final tle = await client.fetchByNoradId(25544);
 if (client.isStale(tle)) {
-  // Data is older than staleThreshold — refresh or warn the user.
+  // Data is older than staleThreshold - refresh or warn the user.
 }
 ```
 
@@ -87,6 +88,102 @@ try {
   // NORAD ID does not exist in the CelesTrak catalog.
 }
 ```
+
+---
+
+## Space-Track data source (optional)
+
+[CelesTrak](https://celestrak.org) works with no credentials and covers the
+vast majority of use cases. **Space-Track is entirely optional.**
+
+[Space-Track.org](https://www.space-track.org) is the US Space Force catalog,
+updated more frequently than CelesTrak for certain object classes. Access
+requires a free registered account (email + password from
+[space-track.org/account/create](https://www.space-track.org/account/create)).
+
+### Creating a SpaceTrackClient
+
+```dart
+import 'package:celestrak/celestrak.dart';
+
+final client = SpaceTrackClient(
+  identity: 'user@example.com', // your Space-Track email
+  password: 'secret',           // your Space-Track password
+);
+try {
+  final iss = await client.fetchByQuery(
+    SpaceTrackQuery.byNoradId(25544),
+  );
+  print('${iss.name}  epoch: ${iss.epoch}  source: ${iss.source}');
+  // iss.source == TleSource.spacetrack
+} finally {
+  client.dispose();
+}
+```
+
+### Disabled client (no credentials)
+
+Passing `null` or an empty string for either credential creates a
+**disabled** client: construction succeeds without error, but calling
+`fetchByQuery` throws a `StateError`. Gate on `isEnabled` to detect this:
+
+```dart
+import 'dart:io' show Platform;
+
+final client = SpaceTrackClient(
+  identity: Platform.environment['SPACETRACK_USER'],
+  password: Platform.environment['SPACETRACK_PASS'],
+);
+if (client.isEnabled) {
+  final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
+}
+```
+
+### Throttling
+
+Space-Track enforces a rate limit of 30 requests per minute and 300 per hour.
+The client applies a conservative minimum inter-request interval (default:
+**2 seconds**) to avoid hitting those limits. You can widen the gap at
+construction time if your usage pattern is bursty:
+
+```dart
+final client = SpaceTrackClient(
+  identity: 'user@example.com',
+  password: 'secret',
+  minRequestInterval: const Duration(seconds: 5),
+);
+```
+
+Do not set `minRequestInterval` below 2 seconds in production - Space-Track
+may suspend accounts that hammer the API.
+
+### Error handling
+
+```dart
+try {
+  final tle = await client.fetchByQuery(SpaceTrackQuery.byNoradId(25544));
+} on AuthenticationException catch (e) {
+  // HTTP 401 or 403 - wrong credentials or session expired.
+  // e.statusCode is 401 or 403; e.message describes the failure.
+  print('Login failed (${e.statusCode}): ${e.message}');
+} on RateLimitException catch (e) {
+  // HTTP 429 - rate limit exceeded.
+  // e.retryAfter is the Duration from the Retry-After header (or null).
+  final wait = e.retryAfter ?? const Duration(minutes: 1);
+  print('Rate limited; retry after ${wait.inSeconds}s');
+} on NetworkException catch (e) {
+  // Transport failure (socket error, timeout, unexpected HTTP status).
+  print('Network error: ${e.message}');
+} on SatelliteNotFoundException {
+  // Space-Track returned no record for the requested NORAD ID.
+}
+```
+
+### Privacy note
+
+Credentials are held **in memory only** for the lifetime of the
+`SpaceTrackClient` instance - never written to disk, never included in cache
+files. They are released when the object is garbage-collected.
 
 ---
 
