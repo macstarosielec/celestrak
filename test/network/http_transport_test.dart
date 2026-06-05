@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:celestrak/celestrak.dart';
+import 'package:celestrak/src/domain/failures.dart';
+import 'package:celestrak/src/network/http_transport.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';

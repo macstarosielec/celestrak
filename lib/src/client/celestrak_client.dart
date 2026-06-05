@@ -10,7 +10,7 @@
 ///   its lifecycle remains the caller's responsibility.
 ///
 /// Configuration options (`defaultTtl`, `defaultFormat`, `timeout`,
-/// `maxRetries`, `staleThreshold`) have sensible defaults and can be
+/// `maxAttempts`, `staleThreshold`) have sensible defaults and can be
 /// overridden at construction time.
 ///
 /// See also:
@@ -24,6 +24,7 @@ import 'package:celestrak/src/data/local/file_cache_store.dart';
 import 'package:celestrak/src/data/remote/celestrak_data_source.dart';
 import 'package:celestrak/src/data/tle_repository_impl.dart';
 import 'package:celestrak/src/domain/clock.dart';
+import 'package:celestrak/src/domain/constants.dart';
 import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
@@ -82,8 +83,8 @@ final class CelestrakClient {
   /// - [defaultTtl] — cache time-to-live (default 2 hours).
   /// - [defaultFormat] — wire format for remote requests.
   /// - [timeout] — per-attempt HTTP deadline.
-  /// - [maxRetries] — total number of attempts (1 initial + up to
-  ///   `maxRetries − 1` retries). Must be at least 1.
+  /// - [maxAttempts] — total number of HTTP attempts (1 initial + up to
+  ///   `maxAttempts − 1` retries). Must be at least 1.
   /// - [staleThreshold] — epoch age beyond which data is considered stale.
   /// - [clock] — injectable time source for TTL and staleness.
   /// - [useIsolate] — when `true`, multi-record category parses are offloaded
@@ -94,7 +95,7 @@ final class CelestrakClient {
     Duration defaultTtl = kDefaultTtl,
     CelestrakFormat defaultFormat = CelestrakFormat.omm,
     Duration timeout = kDefaultTimeout,
-    int maxRetries = kDefaultMaxAttempts,
+    int maxAttempts = kDefaultMaxAttempts,
     Duration staleThreshold = defaultStaleThreshold,
     Clock clock = const SystemClock(),
     bool useIsolate = false,
@@ -104,7 +105,7 @@ final class CelestrakClient {
           defaultTtl: defaultTtl,
           defaultFormat: defaultFormat,
           timeout: timeout,
-          maxRetries: maxRetries,
+          maxAttempts: maxAttempts,
           staleThreshold: staleThreshold,
           clock: clock,
           ownsClient: true,
@@ -119,7 +120,7 @@ final class CelestrakClient {
     required Duration defaultTtl,
     required CelestrakFormat defaultFormat,
     required Duration timeout,
-    required int maxRetries,
+    required int maxAttempts,
     required Duration staleThreshold,
     required Clock clock,
     required bool ownsClient,
@@ -127,7 +128,7 @@ final class CelestrakClient {
   })  : _defaultTtl = defaultTtl,
         _defaultFormat = defaultFormat,
         _timeout = timeout,
-        _maxRetries = _checkedMaxRetries(maxRetries),
+        _maxAttempts = _checkedMaxAttempts(maxAttempts),
         _staleness = StalenessChecker(
           clock: clock,
           staleThreshold: staleThreshold,
@@ -138,7 +139,7 @@ final class CelestrakClient {
           dataSource: CelestrakDataSource(
             transport: HttpTransport(
               client: httpClient,
-              maxAttempts: maxRetries,
+              maxAttempts: maxAttempts,
               timeout: timeout,
             ),
           ),
@@ -154,8 +155,8 @@ final class CelestrakClient {
   /// responsible for managing the lifecycle of both [httpClient] and
   /// [cacheStore].
   ///
-  /// [maxRetries] is the total number of attempts (1 initial + up to
-  /// `maxRetries − 1` retries). Must be at least 1.
+  /// [maxAttempts] is the total number of HTTP attempts (1 initial + up to
+  /// `maxAttempts − 1` retries). Must be at least 1.
   ///
   /// [useIsolate] when `true`, multi-record category parses are offloaded to a
   /// worker isolate via `Isolate.run`. Defaults to `false`.
@@ -165,7 +166,7 @@ final class CelestrakClient {
     Duration defaultTtl = kDefaultTtl,
     CelestrakFormat defaultFormat = CelestrakFormat.omm,
     Duration timeout = kDefaultTimeout,
-    int maxRetries = kDefaultMaxAttempts,
+    int maxAttempts = kDefaultMaxAttempts,
     Duration staleThreshold = defaultStaleThreshold,
     Clock clock = const SystemClock(),
     bool useIsolate = false,
@@ -175,37 +176,37 @@ final class CelestrakClient {
           defaultTtl: defaultTtl,
           defaultFormat: defaultFormat,
           timeout: timeout,
-          maxRetries: maxRetries,
+          maxAttempts: maxAttempts,
           staleThreshold: staleThreshold,
           clock: clock,
           ownsClient: false,
           useIsolate: useIsolate,
         );
 
-  /// Validates [maxRetries] and returns it unchanged, or throws
+  /// Validates [maxAttempts] and returns it unchanged, or throws
   /// [ArgumentError].
   ///
   /// Used in the initializer list so validation fires before any field or
   /// subobject is constructed.
-  static int _checkedMaxRetries(int maxRetries) {
-    if (maxRetries < 1) {
+  static int _checkedMaxAttempts(int maxAttempts) {
+    if (maxAttempts < 1) {
       throw ArgumentError.value(
-        maxRetries,
-        'maxRetries',
-        'maxRetries must be at least 1 (got $maxRetries)',
+        maxAttempts,
+        'maxAttempts',
+        'maxAttempts must be at least 1 (got $maxAttempts)',
       );
     }
-    return maxRetries;
+    return maxAttempts;
   }
 
   final TleRepository _repository;
   final http.Client _httpClient;
   final Duration _defaultTtl;
   final CelestrakFormat _defaultFormat;
-  // Stored for introspection via [timeout] / [maxRetries] getters; the actual
+  // Stored for introspection via [timeout] / [maxAttempts] getters; the actual
   // values are forwarded to [HttpTransport] during construction.
   final Duration _timeout;
-  final int _maxRetries;
+  final int _maxAttempts;
   final StalenessChecker _staleness;
   final bool _ownsClient;
 
@@ -219,8 +220,8 @@ final class CelestrakClient {
   Duration get timeout => _timeout;
 
   /// Total number of HTTP attempts
-  /// (1 initial + up to `maxRetries − 1` retries).
-  int get maxRetries => _maxRetries;
+  /// (1 initial + up to `maxAttempts − 1` retries).
+  int get maxAttempts => _maxAttempts;
 
   /// Staleness threshold used when calling [isStale].
   Duration get staleThreshold => _staleness.staleThreshold;

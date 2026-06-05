@@ -18,6 +18,7 @@ library;
 import 'package:celestrak/celestrak.dart';
 import 'package:celestrak/src/data/remote/celestrak_data_source.dart';
 import 'package:celestrak/src/data/tle_repository_impl.dart';
+import 'package:celestrak/src/network/http_transport.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';

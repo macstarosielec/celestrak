@@ -27,7 +27,7 @@ CelestrakClient _client(
   MockClientHandler? tleHandler,
   FakeClock? clock,
   MemoryCacheStore? store,
-  int maxRetries = 1,
+  int maxAttempts = 1,
   Duration defaultTtl = const Duration(hours: 2),
   CelestrakFormat defaultFormat = CelestrakFormat.omm,
 }) {
@@ -48,7 +48,7 @@ CelestrakClient _client(
     defaultTtl: defaultTtl,
     defaultFormat: defaultFormat,
     clock: effectiveClock,
-    maxRetries: maxRetries,
+    maxAttempts: maxAttempts,
   );
 }
 
@@ -287,7 +287,7 @@ void main() {
         },
         clock: clock,
         store: store,
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       await client.fetchCategoryByGroup('stations');
@@ -321,7 +321,7 @@ void main() {
         },
         clock: clock,
         store: store,
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       await client.fetchCategoryByGroup('stations');
@@ -352,7 +352,7 @@ void main() {
     test('NetworkException propagates on transport error', () async {
       final client = _client(
         (_) async => http.Response('server error', 503),
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       await expectLater(
@@ -364,7 +364,7 @@ void main() {
     test('NetworkException.statusCode is set on HTTP error response', () async {
       final client = _client(
         (_) async => http.Response('server error', 503),
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       try {
@@ -378,7 +378,7 @@ void main() {
     test('unknown group raises SatelliteNotFoundException', () async {
       final client = _client(
         (_) async => http.Response('No GP data found', 200),
-        maxRetries: 1,
+        maxAttempts: 1,
       );
 
       await expectLater(
