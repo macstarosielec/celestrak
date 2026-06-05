@@ -11,6 +11,9 @@ import 'package:celestrak/src/data/local/cache_store.dart';
 /// collected. Intended for unit tests and as a fallback when file I/O is
 /// unavailable.
 final class MemoryCacheStore implements CacheStore {
+  /// Creates a [MemoryCacheStore].
+  MemoryCacheStore();
+
   final _bytes = <String, Uint8List>{};
   final _timestamps = <String, DateTime>{};
 

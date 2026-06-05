@@ -15,3 +15,5 @@ linter:
     # copyWith uses a sentinel default for the nullable `omm` argument, so
     # passing explicit values there is intentional rather than redundant.
     avoid_redundant_argument_values: false
+    # Enforce dartdoc on every public member for pub.dev score.
+    public_member_api_docs: true
