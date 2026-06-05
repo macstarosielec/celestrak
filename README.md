@@ -1,4 +1,4 @@
-# celestrak
+﻿# celestrak
 
 A pure-Dart client for fetching, parsing, and caching satellite **TLE** and
 **OMM** orbital data from [CelesTrak](https://celestrak.org) and optionally
@@ -88,6 +88,274 @@ try {
   // NORAD ID does not exist in the CelesTrak catalog.
 }
 ```
+
+---
+
+## Staleness pipeline
+
+Every fetch goes through three distinct freshness checks. Understanding how
+they interact helps you tune the client for your accuracy requirements.
+
+### 1. TTL (time-to-live) - cache freshness
+
+When you call any `fetch*` method, the client first checks whether a cache
+entry exists and how old it is. The age of the cache entry is the elapsed
+time since the raw payload was downloaded and written to disk (or memory).
+
+If that age is **less than** `ttl` (which defaults to `defaultTtl`, 2 hours),
+the cached data is returned immediately with no network request. The returned
+`SatelliteTle` carries `source == TleSource.local`.
+
+If the cache entry is older than `ttl`, or no entry exists at all, the client
+fetches a fresh copy from CelesTrak, writes it to the cache, and returns the
+result with `source == TleSource.celestrak`.
+
+This TTL is a cache-management concept. It answers: "is this downloaded
+payload fresh enough to re-use?" It has nothing to do with the orbital
+accuracy of the data itself.
+
+### 2. `isStale` - orbital accuracy
+
+`isStale` answers a different question: "are the orbital elements themselves
+accurate enough to propagate?"
+
+When you call `client.isStale(tle)`, the client computes how long ago the
+TLE or OMM epoch was published by CelesTrak. If that duration exceeds
+`staleThreshold` (default 3 days), `isStale` returns `true`.
+
+This is independent of the cache. A TLE can be cache-fresh (downloaded 30
+minutes ago) but orbitally stale (published 5 days ago and not updated since).
+Conversely, a freshly updated TLE that was just published will be orbitally
+fresh regardless of how old the cache entry is.
+
+Always check `isStale` before passing orbital elements to a propagator.
+
+### 3. `allowStale` - offline fallback
+
+`allowStale` is a policy for what to do when a fetch would normally hit the
+network but the network is unavailable.
+
+With the default `allowStale: false`, a transport failure throws
+`NetworkException`. With `allowStale: true`, the client instead returns the
+most-recent cached entry even if it is older than `ttl`. The entry is still
+served with `source == TleSource.local`. Check `isStale` after the call to
+decide whether the data is usable for your application.
+
+`allowStale` does not affect TTL-fresh cache hits. If the cache is within
+TTL, the network is not consulted at all, so `allowStale` is irrelevant.
+
+`allowStale` only masks **network** failures. Parse failures
+(`TleParseException`, `OmmParseException`) are always re-thrown and never
+masked by `allowStale`, even when a stale cache entry exists.
+
+### How they interact
+
+```
+fetch called
+  |
+  +-- cache age < ttl? → return cached data (source=local), no network call
+  |
+  +-- cache expired or missing → attempt network fetch
+        |
+        +-- success → cache + return fresh data (source=celestrak)
+        |
+        +-- network failure
+              |
+              +-- allowStale=false → throw NetworkException
+              |
+              +-- allowStale=true + cached entry exists → return stale data
+              |
+              +-- allowStale=true + no cache entry → throw NetworkException
+```
+
+After any successful return, call `isStale(tle)` to check orbital accuracy
+independent of where the data came from.
+
+---
+
+## Cache configuration guide
+
+### `defaultTtl`
+
+Controls how long a downloaded payload is reused before the client goes back
+to CelesTrak. The default is **2 hours**, matching CelesTrak's own update
+cycle. Setting it lower increases network traffic without giving you fresher
+data (CelesTrak typically updates each group every 2 hours). Setting it higher
+trades freshness for fewer requests.
+
+Option 1 - shorter TTL (re-check every 30 minutes):
+
+```dart
+final client = CelestrakClient(
+  cacheDir: Directory.systemTemp.path,
+  defaultTtl: const Duration(minutes: 30),
+);
+```
+
+Option 2 - longer TTL (cache for 6 hours, useful when multiple instances
+on the same host share a single cache directory):
+
+```dart
+final client = CelestrakClient(
+  cacheDir: '/shared/celestrak-cache',
+  defaultTtl: const Duration(hours: 6),
+);
+```
+
+You can also override TTL per call without changing the client default:
+
+```dart
+final tle = await client.fetchByNoradId(
+  25544,
+  ttl: const Duration(hours: 4),
+);
+```
+
+### `staleThreshold`
+
+Controls when `isStale` considers orbital elements too old to be accurate.
+The default is **3 days**, which is conservative for LEO satellites. Orbits
+that decay quickly (debris, very low satellites) or that require high
+accuracy (rendezvous, proximity operations) may need a shorter threshold.
+
+```dart
+// Tighter threshold: flag anything older than 1 day.
+final client = CelestrakClient(
+  cacheDir: Directory.systemTemp.path,
+  staleThreshold: const Duration(days: 1),
+);
+```
+
+`staleThreshold` does not affect caching or network behaviour. It only
+changes what `isStale` returns.
+
+### `forceCache`
+
+Pass `forceCache: true` to any `fetch*` call to make it consult only the
+cache and never touch the network. This is useful for offline-first
+applications that pre-populate the cache at startup.
+
+```dart
+try {
+  final tle = await client.fetchByNoradId(25544, forceCache: true);
+  // Came from cache; no network request was made.
+} on CacheMissException catch (e) {
+  // No cached entry - you must fetch without forceCache first.
+  print('Cache miss for key ${e.key}');
+}
+```
+
+When `forceCache: true` and no entry exists, `CacheMissException` is thrown
+immediately. The network is never consulted, even if it is available.
+
+### Sharing a cache directory
+
+All instances pointing at the same `cacheDir` share cache entries. If you
+run multiple scripts or processes against CelesTrak from the same host,
+point them all at a single directory. Each process will serve cache hits
+from the shared store rather than fetching independently, keeping your total
+download count within CelesTrak's fair-use policy.
+
+---
+
+## Error handling guide
+
+All errors thrown by this package are subtypes of `CelestrakException`. No
+raw `http` or `dart:io` exception escapes the public API. You can catch the
+base type to handle anything the package throws, or catch specific subtypes
+to handle individual failure modes.
+
+```dart
+try {
+  final tle = await client.fetchByNoradId(25544);
+} on SatelliteNotFoundException catch (e) {
+  // The NORAD ID does not exist in the CelesTrak catalog.
+  // e.noradId - the queried NORAD ID, or 0 when the exception relates to a group/category query.
+  // e.uri - the CelesTrak URL that returned "No GP data found".
+  print('Not found: NORAD ${e.noradId}');
+} on NetworkException catch (e) {
+  // Transport failure (socket error, timeout, unexpected HTTP status)
+  // after all retry attempts, with no usable cache entry available.
+  // e.statusCode - HTTP status if a response was received (or null).
+  // e.uri - the URL that failed.
+  // e.cause - underlying exception (SocketException, TimeoutException, …).
+  print('Network error ${e.statusCode}: ${e.message}');
+} on CacheMissException catch (e) {
+  // forceCache: true was used but no cache entry exists.
+  // e.key - the cache key that was looked up.
+  print('Cache miss: ${e.key}');
+} on TleParseException catch (e) {
+  // Malformed TLE structure or failed checksum.
+  // e.field - the TLE field that caused the failure ('line1', 'line2', …).
+  print('TLE parse error in ${e.field}: ${e.message}');
+} on OmmParseException catch (e) {
+  // Malformed OMM JSON (missing mandatory field, wrong type, etc.).
+  // e.field - the OMM keyword that failed, when the failure is field-specific.
+  print('OMM parse error at ${e.field}: ${e.message}');
+} on CelestrakException catch (e) {
+  // Catch-all for any other package exception.
+  print('Celestrak error: ${e.message}');
+}
+```
+
+### When each exception is thrown
+
+| Exception | Thrown when |
+|---|---|
+| `SatelliteNotFoundException` | CelesTrak returns "No GP data found" for the requested NORAD ID or group name. Never masked by `allowStale`. |
+| `NetworkException` | All retry attempts fail (socket error, timeout, or unexpected HTTP status) and no usable cache entry is available. Also thrown when `allowStale: true` but no cache entry exists at all. `allowStale` does **not** mask `TleParseException` or `OmmParseException` - those always propagate. |
+| `CacheMissException` | `forceCache: true` is passed and the cache contains no entry for the requested key. No network call is made. |
+| `TleParseException` | A downloaded TLE body has a malformed structure or a failed mod-10 checksum. |
+| `OmmParseException` | A downloaded OMM JSON body is missing a mandatory field, or a field has an unexpected type or format. |
+| `AuthenticationException` | Space-Track returns HTTP 401 or 403 (wrong credentials or expired session). Only relevant when using `SpaceTrackClient`. |
+| `RateLimitException` | Space-Track returns HTTP 429. Only relevant when using `SpaceTrackClient`. |
+
+Parse exceptions (`TleParseException`, `OmmParseException`) are not expected
+in normal use against CelesTrak - they indicate that the remote data does not
+conform to the published format. If you encounter them repeatedly, check
+whether CelesTrak has changed its output format.
+
+Retry behaviour applies to 5xx responses, socket errors, and timeouts.
+4xx responses (including 404) are not retried. `SatelliteNotFoundException`
+is derived from CelesTrak's body content, not from an HTTP status code.
+
+---
+
+## Platform notes
+
+This package is **pure Dart** and has no dependency on Flutter. It runs on:
+
+- **Dart VM** - servers, CLI tools, background workers.
+- **Flutter** - Android, iOS, macOS, Windows, Linux.
+- **Flutter Web** - usable with a custom `CacheStore`; the default constructor
+  requires `dart:io` and will not compile on web (see the Web section below).
+
+No Flutter SDK is required to use this package in a Dart-only project.
+
+The only runtime dependencies are `http` (cross-platform HTTP client) and
+`meta` (annotations). The `http` package works on all Dart platforms; you
+supply any compatible `http.Client` implementation for your target
+(the default `IOClient` on VM/Flutter native, `BrowserClient` on web).
+
+File caching (`FileCacheStore`) uses `dart:io` and is therefore available
+on all non-web platforms. On Flutter Web, `dart:io` is unavailable - the
+default `CelestrakClient` constructor unconditionally imports `dart:io` and
+**will not compile on web**. There is no automatic fallback.
+
+To use the package on Flutter Web, construct the client via
+`CelestrakClient.withStore` and pass a `MemoryCacheStore` (or any
+`CacheStore` implementation that does not rely on `dart:io`):
+
+```dart
+final client = CelestrakClient.withStore(
+  store: MemoryCacheStore(),
+  httpClient: BrowserClient(), // from package:http/browser_client.dart
+);
+```
+
+`MemoryCacheStore` keeps data in memory for the lifetime of the page - cache
+is lost on reload. For cross-session persistence, provide your own `CacheStore`
+backed by `localStorage`, IndexedDB, or similar.
 
 ---
 
@@ -189,7 +457,7 @@ files. They are released when the object is garbage-collected.
 
 ## Rate limits and fair use
 
-> **CelesTrak only** — Space-Track uses a different mechanism (429 responses +
+> **CelesTrak only** - Space-Track uses a different mechanism (429 responses +
 > `minRequestInterval`); see the Throttling section above.
 
 CelesTrak has enforced a **one-download-per-update-cycle** policy since
@@ -205,7 +473,7 @@ request.
 **What happens if you exceed the limit.** CelesTrak does not return an HTTP
 error code. Instead, it adds your IP address to a firewall block-list when
 your IP address exceeds **100 MB of downloads per day**. Subsequent requests
-from that IP simply time out at the TCP level — they appear as connection
+from that IP simply time out at the TCP level - they appear as connection
 timeouts or socket errors rather than as a 429 or 403 response.
 
 **If you start seeing connection timeouts against CelesTrak** and other sites
