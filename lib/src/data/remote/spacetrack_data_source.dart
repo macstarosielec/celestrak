@@ -3,7 +3,7 @@
 /// Implements a POST-login / cookie-session flow against the Space-Track REST
 /// API, maps the GP class query to typed responses, and enforces a conservative
 /// minimum request interval to comply with the published rate-limit policy
-/// (30 req/min, 300 req/hour — ADR-7).
+/// (30 req/min, 300 req/hour).
 ///
 /// ## Login flow
 ///
@@ -13,7 +13,7 @@
 /// requests include that cookie automatically via the shared [http.Client].
 ///
 /// The session cookie is kept **in-memory only** and is never written to disk,
-/// in accordance with NFR-15 (no persistent credential storage).
+/// ensuring no persistent credential storage.
 ///
 /// ## Usage
 ///
@@ -92,10 +92,9 @@ const Duration kSpaceTrackDefaultTimeout = Duration(seconds: 30);
 /// Handles the POST-login / cookie-session authentication flow and issues GP
 /// class queries for individual objects by NORAD catalog number.
 ///
-/// **ADR-7 note.** ADR-7 describes a public `SpaceTrackClient` facade. This
-/// class is the data-layer component that will be wrapped by that facade; it
-/// is intentionally not exported from `lib/celestrak.dart` until the facade is
-/// ready (see CEL-47).
+/// This class is the data-layer component wrapped by the `SpaceTrackClient`
+/// facade. It is intentionally not exported from `lib/celestrak.dart`; use
+/// `SpaceTrackClient` directly.
 ///
 /// **Rate limiting.** A minimum inter-request delay (`minRequestInterval`,
 /// default: 2 s) is enforced between successive data requests. The login call

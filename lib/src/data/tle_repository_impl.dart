@@ -36,7 +36,7 @@ import 'package:celestrak/src/domain/tle_repository.dart';
 ///    UTF-8 payload to the cache, and return with
 ///    `source = TleSource.celestrak`.
 ///
-/// ## OMM dual-format stitch (ADR-3)
+/// ## OMM dual-format stitch
 ///
 /// When [CelestrakFormat.omm] is requested the implementation makes a second
 /// `FORMAT=TLE` request (also cached under its own key) and passes both
@@ -637,8 +637,7 @@ final class TleRepositoryImpl implements TleRepository {
   /// [TleSource.celestrak].
   ///
   /// For [CelestrakFormat.omm], the group TLE body is fetched once and cached
-  /// under the TLE-format key so the OMM stitch (ADR-3) avoids per-record
-  /// HTTP calls.
+  /// under the TLE-format key so the OMM stitch avoids per-record HTTP calls.
   Future<List<SatelliteTle>> _fetchAndCacheCategory(
     SatelliteCategory category,
     CelestrakFormat format,
@@ -694,8 +693,8 @@ final class TleRepositoryImpl implements TleRepository {
   /// Parses a multi-record OMM JSON body into a list of [SatelliteTle].
   ///
   /// [tleBody] is the full group TLE text (fetched or cached once at the
-  /// caller level) used for the ADR-3 dual-format stitch. Each record's lines
-  /// are looked up by `noradCatId` from this in-memory string — no additional
+  /// caller level) used for the dual-format stitch. Each record's lines are
+  /// looked up by `noradCatId` from this in-memory string — no additional
   /// HTTP calls are made.
   ///
   /// Records are decoded lazily via [OmmParser.parseAllLazy]: each
@@ -801,8 +800,7 @@ final class TleRepositoryImpl implements TleRepository {
   /// [TleSource.celestrak].
   ///
   /// For [CelestrakFormat.omm], the group TLE body is fetched once and cached
-  /// under the TLE-format key so the OMM stitch (ADR-3) avoids per-record
-  /// HTTP calls.
+  /// under the TLE-format key so the OMM stitch avoids per-record HTTP calls.
   Future<List<SatelliteTle>> _fetchAndCacheGroup(
     String group,
     CelestrakFormat format,

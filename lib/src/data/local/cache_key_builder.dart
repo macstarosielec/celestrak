@@ -1,10 +1,10 @@
-/// Cache-key construction following the ADR-8 key scheme.
+/// Cache-key construction.
 ///
 /// Keys encode `{queryType, queryValue, format, source}` as a
 /// URL-safe, alphanumeric-and-separator string that `CacheStore`
 /// implementations can use as filenames or map keys without escaping.
 ///
-/// Key format (ADR-8):
+/// Key format:
 /// ```text
 /// {queryType}:{queryValue}~fmt:{format}~src:{source}
 /// ```
@@ -30,7 +30,7 @@ final _invalidChars = RegExp(r'[^a-z0-9:_\-~]');
 // Full validation pattern: alphanumeric plus `:`, `_`, `-`, `~`.
 final _validKey = RegExp(r'^[A-Za-z0-9:_\-~]+$');
 
-/// Builds validated cache keys conforming to the ADR-8 key scheme.
+/// Builds validated cache keys.
 ///
 /// Every public factory normalises its inputs, joins the components, and
 /// asserts the result against `CacheStore.validateKey`-compatible rules

@@ -8,7 +8,7 @@
 /// Space-Track requires a registered account. Supply your credentials via
 /// `identity` (email) and `password`. The facade calls login automatically
 /// on the first `fetchByQuery` call. Credentials are kept in memory only
-/// and are never written to disk (NFR-15).
+/// and are never written to disk.
 ///
 /// ## Rate limiting
 ///
@@ -103,7 +103,7 @@ final class SpaceTrackClient {
   /// [baseUrl] overrides the production Space-Track origin (for testing).
   ///
   /// [minRequestInterval] is the minimum time between successive data
-  /// requests (default: 2 seconds, per ADR-7).
+  /// requests (default: 2 seconds).
   ///
   /// [timeout] is the per-request HTTP deadline.
   ///

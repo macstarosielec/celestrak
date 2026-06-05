@@ -1,15 +1,11 @@
-/// Benchmark hook for parser timing (ADR-9 stub).
+/// Benchmark hook for parser timing.
 ///
 /// A future hardening pass will run the worst-case category benchmark
 /// (full `starlink` OMM) and decide whether to add an opt-in
-/// `Isolate.run` parse path (ADR-9). This hook lets the measurement
-/// harness instrument parse calls without changing the production code
-/// path.
+/// `Isolate.run` parse path for large category bodies. This hook lets
+/// the measurement harness instrument parse calls without changing the
+/// production code path.
 ///
-/// See also:
-/// - [NullParseBenchmarkHook] — the default no-op implementation.
-/// - ADR-9: "Parsing: synchronous default; opt-in `Isolate.run` gated on
-///   benchmark".
 library;
 
 /// Receives timing signals around a single multi-record parse operation.
