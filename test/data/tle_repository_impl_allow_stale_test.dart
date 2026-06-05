@@ -1,4 +1,4 @@
-/// CEL-52: allowStale fallback — stale-while-revalidate semantics (FR-17).
+/// CEL-52 / CEL-54: allowStale fallback — stale-while-revalidate semantics (FR-17).
 ///
 /// Verifies:
 /// - network fail + allowStale:true → stale cache returned + isStale() true

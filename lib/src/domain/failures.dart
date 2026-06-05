@@ -193,3 +193,24 @@ final class TleParseException extends CelestrakException {
       ? 'TleParseException: $message'
       : 'TleParseException($field): $message';
 }
+
+/// Thrown when a cache-only (`forceCache: true`) fetch finds no cached entry,
+/// or when a required companion cache sub-key (e.g. the TLE sub-key for an
+/// OMM stitch) is absent.
+///
+/// This is raised when `forceCache` is `true` and the cache store contains no
+/// entry for the requested key, or when a companion cache sub-key is
+/// independently evicted mid-read. No network request is ever made when
+/// `forceCache` is `true`.
+///
+/// [key] is the cache key that was not found.
+final class CacheMissException extends CelestrakException {
+  /// Creates a [CacheMissException] for the given cache [key].
+  const CacheMissException(super.message, {required this.key});
+
+  /// The cache key for which no entry was found.
+  final String key;
+
+  @override
+  String toString() => 'CacheMissException($key): $message';
+}

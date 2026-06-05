@@ -6,7 +6,7 @@ library;
 
 import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/failures.dart'
-    show NetworkException, SatelliteNotFoundException;
+    show CacheMissException, NetworkException, SatelliteNotFoundException;
 import 'package:celestrak/src/domain/satellite_tle.dart';
 
 /// Contract for fetching [SatelliteTle] records with transparent caching.
@@ -16,6 +16,22 @@ import 'package:celestrak/src/domain/satellite_tle.dart';
 /// fresh cache entry is absent the repository fetches from the remote source,
 /// parses the response, writes the raw payload to cache, and returns the fully
 /// stamped [SatelliteTle].
+///
+/// ## `forceCache` and `allowStale` interaction
+///
+/// When both `forceCache: true` and `allowStale: true` are supplied to any
+/// fetch method, `forceCache` takes unconditional priority: the network is
+/// never contacted and `allowStale` is silently ignored. If no cached entry
+/// exists a [CacheMissException] is thrown immediately regardless of
+/// `allowStale`. Callers who want "try cache, fall back to network on miss"
+/// should omit `forceCache` and use `allowStale` alone.
+///
+/// ## `forceCache` and TTL
+///
+/// When `forceCache: true` and a cache entry exists but is TTL-expired, the
+/// stale entry is served without any signal beyond the normal [SatelliteTle]
+/// fields. Use [SatelliteTle.isStale] to check whether the returned record
+/// has aged past the orbital-epoch stale threshold.
 abstract interface class TleRepository {
   /// Fetches a [SatelliteTle] for [noradId].
   ///
@@ -33,11 +49,18 @@ abstract interface class TleRepository {
   /// repository returns a stale cached entry (if present) rather than
   /// re-throwing the exception.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [SatelliteNotFoundException] when the object is not in the
   /// CelesTrak catalog and no usable cache entry exists.
   ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   ///
   /// Throws [ArgumentError] if [noradId] is less than 1.
   Future<SatelliteTle> fetchByNoradId(
@@ -45,6 +68,7 @@ abstract interface class TleRepository {
     CelestrakFormat format,
     Duration ttl,
     bool allowStale,
+    bool forceCache,
   });
 
   /// Returns the current cache age for the entry keyed to [noradId].
@@ -69,16 +93,24 @@ abstract interface class TleRepository {
   /// When [allowStale] is `true` and the network request fails, returns
   /// a stale cached entry if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [SatelliteNotFoundException] when the category group is not known
   /// to CelesTrak. This exception is never masked by the `allowStale` fallback.
   ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   Future<List<SatelliteTle>> fetchCategory(
     SatelliteCategory category, {
     CelestrakFormat format,
     Duration ttl,
     bool allowStale,
+    bool forceCache,
   });
 
   /// Returns the current cache age for the [category] entry.
@@ -107,8 +139,15 @@ abstract interface class TleRepository {
   /// When [allowStale] is `true` and the network request fails, returns
   /// a stale cached entry if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   ///
   /// Throws [ArgumentError] if [name] is empty.
   Future<List<SatelliteTle>> fetchByName(
@@ -116,6 +155,7 @@ abstract interface class TleRepository {
     CelestrakFormat format,
     Duration ttl,
     bool allowStale,
+    bool forceCache,
   });
 
   /// Returns the current cache age for the entry keyed to [name].
@@ -144,11 +184,18 @@ abstract interface class TleRepository {
   /// When [allowStale] is `true` and the network request fails, returns
   /// a stale cached entry if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [SatelliteNotFoundException] when the group name is not known to
   /// CelesTrak. This exception is never masked by the `allowStale` fallback.
   ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   ///
   /// Throws [ArgumentError] if [group] is empty.
   Future<List<SatelliteTle>> fetchCategoryByGroup(
@@ -156,6 +203,7 @@ abstract interface class TleRepository {
     CelestrakFormat format,
     Duration ttl,
     bool allowStale,
+    bool forceCache,
   });
 
   /// Returns the current cache age for the entry keyed to [group].
@@ -183,8 +231,15 @@ abstract interface class TleRepository {
   /// When [allowStale] is `true` and the network request fails, returns a
   /// stale cached entry if one exists.
   ///
+  /// When [forceCache] is `true`, only the cache is consulted and no network
+  /// request is ever made. If no cached entry exists, [CacheMissException] is
+  /// thrown immediately with zero transport calls.
+  ///
   /// Throws [NetworkException] on transport failure when no usable cached
   /// entry is available or [allowStale] is `false`.
+  ///
+  /// Throws [CacheMissException] when [forceCache] is `true` and no cached
+  /// entry exists.
   ///
   /// Throws [ArgumentError] when [intlDesignator] is malformed.
   Future<List<SatelliteTle>> fetchByIntlDesignator(
@@ -192,6 +247,7 @@ abstract interface class TleRepository {
     CelestrakFormat format,
     Duration ttl,
     bool allowStale,
+    bool forceCache,
   });
 
   /// Returns the current cache age for the entry keyed to [intlDesignator].

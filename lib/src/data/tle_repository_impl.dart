@@ -60,6 +60,15 @@ import 'package:celestrak/src/domain/tle_repository.dart';
 /// [fetchCategory], [fetchCategoryByGroup], [fetchByName], and
 /// [fetchByIntlDesignator]. When no cached entry is available the original
 /// exception is re-thrown regardless of `allowStale`.
+///
+/// ## `forceCache` and `allowStale` interaction
+///
+/// When both `forceCache: true` and `allowStale: true` are supplied,
+/// `forceCache` takes unconditional priority: the network is never contacted
+/// and `allowStale` is silently ignored. If no cached entry exists a
+/// [CacheMissException] is thrown regardless of `allowStale`. Callers who
+/// want "try cache, fall back to network on miss" should omit `forceCache`
+/// and use `allowStale` alone.
 final class TleRepositoryImpl implements TleRepository {
   /// Creates a [TleRepositoryImpl].
   ///
@@ -89,11 +98,23 @@ final class TleRepositoryImpl implements TleRepository {
     CelestrakFormat format = CelestrakFormat.omm,
     Duration ttl = kDefaultTtl,
     bool allowStale = false,
+    bool forceCache = false,
   }) async {
     final key = CacheKeyBuilder.forNoradId(noradId, format: format);
     final now = _clock.now;
     final cacheAge = await _cacheStore.age(key, now);
     final isFresh = cacheAge != null && cacheAge < ttl;
+
+    // forceCache: serve from cache only, zero network.
+    if (forceCache) {
+      if (cacheAge == null) {
+        throw CacheMissException(
+          'No cached entry for NORAD ID $noradId.',
+          key: key,
+        );
+      }
+      return _readFromCache(noradId, format, key, now.subtract(cacheAge));
+    }
 
     if (isFresh) {
       // Pass the original write timestamp so fetchedAt reflects when the entry
@@ -135,11 +156,28 @@ final class TleRepositoryImpl implements TleRepository {
     CelestrakFormat format = CelestrakFormat.omm,
     Duration ttl = kDefaultTtl,
     bool allowStale = false,
+    bool forceCache = false,
   }) async {
     final key = CacheKeyBuilder.forCategory(category, format: format);
     final now = _clock.now;
     final cacheAge = await _cacheStore.age(key, now);
     final isFresh = cacheAge != null && cacheAge < ttl;
+
+    // forceCache: serve from cache only, zero network.
+    if (forceCache) {
+      if (cacheAge == null) {
+        throw CacheMissException(
+          'No cached entry for category ${category.group}.',
+          key: key,
+        );
+      }
+      return _readCategoryFromCache(
+        category,
+        format,
+        key,
+        now.subtract(cacheAge),
+      );
+    }
 
     if (isFresh) {
       return _readCategoryFromCache(
@@ -186,6 +224,7 @@ final class TleRepositoryImpl implements TleRepository {
     CelestrakFormat format = CelestrakFormat.omm,
     Duration ttl = kDefaultTtl,
     bool allowStale = false,
+    bool forceCache = false,
   }) async {
     if (group.isEmpty) {
       throw ArgumentError.value(group, 'group', 'group must not be empty');
@@ -194,6 +233,17 @@ final class TleRepositoryImpl implements TleRepository {
     final now = _clock.now;
     final cacheAge = await _cacheStore.age(key, now);
     final isFresh = cacheAge != null && cacheAge < ttl;
+
+    // forceCache: serve from cache only, zero network.
+    if (forceCache) {
+      if (cacheAge == null) {
+        throw CacheMissException(
+          'No cached entry for group "$group".',
+          key: key,
+        );
+      }
+      return _readGroupFromCache(group, format, key, now.subtract(cacheAge));
+    }
 
     if (isFresh) {
       return _readGroupFromCache(group, format, key, now.subtract(cacheAge));
@@ -231,6 +281,7 @@ final class TleRepositoryImpl implements TleRepository {
     CelestrakFormat format = CelestrakFormat.omm,
     Duration ttl = kDefaultTtl,
     bool allowStale = false,
+    bool forceCache = false,
   }) async {
     if (name.trim().isEmpty) {
       throw ArgumentError.value(
@@ -243,6 +294,17 @@ final class TleRepositoryImpl implements TleRepository {
     final now = _clock.now;
     final cacheAge = await _cacheStore.age(key, now);
     final isFresh = cacheAge != null && cacheAge < ttl;
+
+    // forceCache: serve from cache only, zero network.
+    if (forceCache) {
+      if (cacheAge == null) {
+        throw CacheMissException(
+          'No cached entry for name "$name".',
+          key: key,
+        );
+      }
+      return _readNameFromCache(name, format, key, now.subtract(cacheAge));
+    }
 
     if (isFresh) {
       return _readNameFromCache(name, format, key, now.subtract(cacheAge));
@@ -279,6 +341,7 @@ final class TleRepositoryImpl implements TleRepository {
     CelestrakFormat format = CelestrakFormat.omm,
     Duration ttl = kDefaultTtl,
     bool allowStale = false,
+    bool forceCache = false,
   }) async {
     // Validate before touching the cache. ArgumentError extends Error (not
     // Exception), so it bypasses the allowStale fallback by language
@@ -298,6 +361,22 @@ final class TleRepositoryImpl implements TleRepository {
     final now = _clock.now;
     final cacheAge = await _cacheStore.age(key, now);
     final isFresh = cacheAge != null && cacheAge < ttl;
+
+    // forceCache: serve from cache only, zero network.
+    if (forceCache) {
+      if (cacheAge == null) {
+        throw CacheMissException(
+          'No cached entry for international designator "$intlDesignator".',
+          key: key,
+        );
+      }
+      return _readIntlDesFromCache(
+        intlDesignator,
+        format,
+        key,
+        now.subtract(cacheAge),
+      );
+    }
 
     if (isFresh) {
       return _readIntlDesFromCache(
@@ -502,9 +581,11 @@ final class TleRepositoryImpl implements TleRepository {
   /// the [CacheStore.age] call and this [CacheStore.read] call (concurrent
   /// eviction race). See [_readFromCache] for rationale.
   ///
-  /// Also throws [NetworkException] when the OMM path finds its companion TLE
-  /// sub-key independently evicted — returning OMM records with blank TLE lines
-  /// would silently corrupt the stitch result.
+  /// Throws [CacheMissException] (not [NetworkException]) when the OMM path
+  /// finds its companion TLE sub-key independently evicted — returning OMM
+  /// records with blank TLE lines would silently corrupt the stitch result, and
+  /// the correct exception for a missing cache entry is [CacheMissException],
+  /// not a transport error.
   Future<List<SatelliteTle>> _readCategoryFromCache(
     SatelliteCategory category,
     CelestrakFormat format,
@@ -528,12 +609,15 @@ final class TleRepositoryImpl implements TleRepository {
           format: CelestrakFormat.tle,
         );
         final tleBytes = await _cacheStore.read(tleKey);
-        // Treat an independently-evicted TLE sub-key as a cache miss: returning
-        // records with empty line1/line2 would silently corrupt the stitch.
+        // Treat an independently-evicted TLE sub-key as a CacheMissException:
+        // returning records with empty line1/line2 would silently corrupt the
+        // stitch, and the failure is a cache integrity issue, not a transport
+        // error.
         if (tleBytes == null) {
-          throw NetworkException(
+          throw CacheMissException(
             'TLE cache entry for category ${category.group} evicted before it '
-            'could be read; no stale fallback available.',
+            'could be read.',
+            key: tleKey,
           );
         }
         final tleBody = utf8.decode(tleBytes);
@@ -666,9 +750,9 @@ final class TleRepositoryImpl implements TleRepository {
   /// the [CacheStore.age] call and this [CacheStore.read] call (concurrent
   /// eviction race). See [_readFromCache] for rationale.
   ///
-  /// Also throws [NetworkException] when the OMM path finds its companion TLE
-  /// sub-key independently evicted — returning records with blank TLE lines
-  /// would silently corrupt the stitch result.
+  /// Throws [CacheMissException] (not [NetworkException]) when the OMM path
+  /// finds its companion TLE sub-key independently evicted. See
+  /// [_readCategoryFromCache] for rationale.
   Future<List<SatelliteTle>> _readGroupFromCache(
     String group,
     CelestrakFormat format,
@@ -691,12 +775,13 @@ final class TleRepositoryImpl implements TleRepository {
           format: CelestrakFormat.tle,
         );
         final tleBytes = await _cacheStore.read(tleKey);
-        // Treat an independently-evicted TLE sub-key as a cache miss: returning
-        // records with empty line1/line2 would silently corrupt the stitch.
+        // Treat an independently-evicted TLE sub-key as a CacheMissException.
+        // See _readCategoryFromCache for rationale.
         if (tleBytes == null) {
-          throw NetworkException(
-            'TLE cache entry for group "$group" evicted before it could be '
-            'read; no stale fallback available.',
+          throw CacheMissException(
+            'TLE cache entry for group "$group" evicted before it could be'
+            ' read.',
+            key: tleKey,
           );
         }
         final tleBody = utf8.decode(tleBytes);
@@ -777,9 +862,9 @@ final class TleRepositoryImpl implements TleRepository {
   /// the [CacheStore.age] call and this [CacheStore.read] call (concurrent
   /// eviction race). See [_readFromCache] for rationale.
   ///
-  /// Also throws [NetworkException] when the OMM path finds its companion TLE
-  /// sub-key independently evicted — returning records with blank TLE lines
-  /// would silently corrupt the stitch result.
+  /// Throws [CacheMissException] (not [NetworkException]) when the OMM path
+  /// finds its companion TLE sub-key independently evicted. See
+  /// [_readCategoryFromCache] for rationale.
   Future<List<SatelliteTle>> _readNameFromCache(
     String name,
     CelestrakFormat format,
@@ -803,12 +888,12 @@ final class TleRepositoryImpl implements TleRepository {
           format: CelestrakFormat.tle,
         );
         final tleBytes = await _cacheStore.read(tleKey);
-        // Treat an independently-evicted TLE sub-key as a cache miss: returning
-        // records with empty line1/line2 would silently corrupt the stitch.
+        // Treat an independently-evicted TLE sub-key as a CacheMissException.
+        // See _readCategoryFromCache for rationale.
         if (tleBytes == null) {
-          throw NetworkException(
-            'TLE cache entry for name "$name" evicted before it could be read; '
-            'no stale fallback available.',
+          throw CacheMissException(
+            'TLE cache entry for name "$name" evicted before it could be read.',
+            key: tleKey,
           );
         }
         final tleBody = utf8.decode(tleBytes);
@@ -893,9 +978,9 @@ final class TleRepositoryImpl implements TleRepository {
   /// the [CacheStore.age] call and this [CacheStore.read] call (concurrent
   /// eviction race). See [_readFromCache] for rationale.
   ///
-  /// Also throws [NetworkException] when the OMM path finds its companion TLE
-  /// sub-key independently evicted — returning records with blank TLE lines
-  /// would silently corrupt the stitch result.
+  /// Throws [CacheMissException] (not [NetworkException]) when the OMM path
+  /// finds its companion TLE sub-key independently evicted. See
+  /// [_readCategoryFromCache] for rationale.
   Future<List<SatelliteTle>> _readIntlDesFromCache(
     String intlDesignator,
     CelestrakFormat format,
@@ -919,12 +1004,13 @@ final class TleRepositoryImpl implements TleRepository {
           format: CelestrakFormat.tle,
         );
         final tleBytes = await _cacheStore.read(tleKey);
-        // Treat an independently-evicted TLE sub-key as a cache miss: returning
-        // records with empty line1/line2 would silently corrupt the stitch.
+        // Treat an independently-evicted TLE sub-key as a CacheMissException.
+        // See _readCategoryFromCache for rationale.
         if (tleBytes == null) {
-          throw NetworkException(
+          throw CacheMissException(
             'TLE cache entry for international designator "$intlDesignator" '
-            'evicted before it could be read; no stale fallback available.',
+            'evicted before it could be read.',
+            key: tleKey,
           );
         }
         final tleBody = utf8.decode(tleBytes);
