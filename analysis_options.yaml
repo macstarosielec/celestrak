@@ -9,6 +9,7 @@ analyzer:
     strict-raw-types: true
   exclude:
     - test/fixtures/**
+    - tool/**
 
 linter:
   rules:

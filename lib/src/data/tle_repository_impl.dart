@@ -6,6 +6,7 @@
 library;
 
 import 'dart:convert' show jsonDecode, utf8;
+import 'dart:isolate' show Isolate;
 
 import 'package:celestrak/src/data/local/cache_key_builder.dart';
 import 'package:celestrak/src/data/local/cache_store.dart';
@@ -69,6 +70,15 @@ import 'package:celestrak/src/domain/tle_repository.dart';
 /// [CacheMissException] is thrown regardless of `allowStale`. Callers who
 /// want "try cache, fall back to network on miss" should omit `forceCache`
 /// and use `allowStale` alone.
+///
+/// ## Isolate opt-in
+///
+/// When `useIsolate` is `true`, multi-record parse operations for categories,
+/// by-name, by-group, and by-INTDES queries are offloaded to a worker isolate
+/// via `Isolate.run`, keeping the main isolate free during large category
+/// fetches (e.g. the full Starlink constellation). The opt-in is additive and
+/// does not affect correctness; the default (`false`) retains the previous
+/// synchronous behaviour.
 final class TleRepositoryImpl implements TleRepository {
   /// Creates a [TleRepositoryImpl].
   ///
@@ -76,17 +86,23 @@ final class TleRepositoryImpl implements TleRepository {
   /// [cacheStore] is the backing key-value store.
   /// [clock] supplies the current UTC time for TTL and age calculations;
   /// defaults to [SystemClock].
+  /// [useIsolate] when `true`, offloads multi-record JSON + TLE parses to a
+  /// worker isolate so the main isolate is not blocked during large category
+  /// fetches. Defaults to `false`.
   const TleRepositoryImpl({
     required CelestrakDataSource dataSource,
     required CacheStore cacheStore,
     Clock clock = const SystemClock(),
+    bool useIsolate = false,
   })  : _dataSource = dataSource,
         _cacheStore = cacheStore,
-        _clock = clock;
+        _clock = clock,
+        _useIsolate = useIsolate;
 
   final CelestrakDataSource _dataSource;
   final CacheStore _cacheStore;
   final Clock _clock;
+  final bool _useIsolate;
 
   static const _ommParser = OmmParser();
   static const _stitcher = TleOmmStitcher();
@@ -700,23 +716,25 @@ final class TleRepositoryImpl implements TleRepository {
   /// Records are decoded lazily via [OmmParser.parseAllLazy]: each
   /// `Omm` is stitched and added to the result list in-turn so the decoded
   /// JSON entries can be garbage-collected as iteration proceeds.
-  List<SatelliteTle> _parseCategoryOmm(
+  ///
+  /// When [_useIsolate] is `true`, the parse is offloaded to a worker isolate
+  /// via `Isolate.run` so the main isolate is not blocked.
+  Future<List<SatelliteTle>> _parseCategoryOmm(
     String ommBody, {
     required String tleBody,
     required DateTime fetchedAt,
     required bool fromCache,
   }) {
-    final jsonList =
-        (jsonDecode(ommBody) as List<dynamic>).cast<Map<String, dynamic>>();
-
-    final results = <SatelliteTle>[];
-    for (final omm in _ommParser.parseAllLazy(jsonList)) {
-      final tle = _stitcher.stitch(omm, tleBody, fetchedAt: fetchedAt);
-      results.add(
-        fromCache ? tle.copyWith(source: TleSource.local) : tle,
-      );
+    final args = _OmmParseArgs(
+      ommBody: ommBody,
+      tleBody: tleBody,
+      fetchedAt: fetchedAt,
+      fromCache: fromCache,
+    );
+    if (_useIsolate) {
+      return Isolate.run(() => _parseOmmInIsolate(args));
     }
-    return results;
+    return Future.value(_parseOmmInIsolate(args));
   }
 
   /// Parses a multi-record TLE body into a list of [SatelliteTle].
@@ -725,17 +743,23 @@ final class TleRepositoryImpl implements TleRepository {
   /// [SatelliteTle] is produced one-at-a-time, avoiding a full output list
   /// in memory during iteration. The input line buffer is materialised upfront
   /// for the multiple-of-3 guard; see [TleParser.parseAllLazy] for details.
-  List<SatelliteTle> _parseCategoryTle(
+  ///
+  /// When [_useIsolate] is `true`, the parse is offloaded to a worker isolate
+  /// via `Isolate.run` so the main isolate is not blocked.
+  Future<List<SatelliteTle>> _parseCategoryTle(
     String body, {
     required DateTime fetchedAt,
     required bool fromCache,
   }) {
-    final records =
-        _tleParser.parseAllLazy(body, fetchedAt: fetchedAt).toList();
-    if (fromCache) {
-      return records.map((r) => r.copyWith(source: TleSource.local)).toList();
+    final args = _TleParseArgs(
+      body: body,
+      fetchedAt: fetchedAt,
+      fromCache: fromCache,
+    );
+    if (_useIsolate) {
+      return Isolate.run(() => _parseTleInIsolate(args));
     }
-    return records;
+    return Future.value(_parseTleInIsolate(args));
   }
 
   /// Reads a cached group payload and parses it into a list of [SatelliteTle]
@@ -1075,6 +1099,10 @@ final class TleRepositoryImpl implements TleRepository {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Isolate-compatible parse helpers
+  // ---------------------------------------------------------------------------
+
   /// Returns the TLE body for [noradId], either from cache or from the
   /// remote source.
   ///
@@ -1122,4 +1150,96 @@ final class TleRepositoryImpl implements TleRepository {
       return '';
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Isolate-compatible argument types
+//
+// These are plain value types that can be transferred across isolate
+// boundaries without violating the "no closures over mutable state" rule.
+// Top-level parse functions below accept them so `Isolate.run` can invoke
+// them directly.
+// ---------------------------------------------------------------------------
+
+/// Arguments for [_parseOmmInIsolate].
+final class _OmmParseArgs {
+  const _OmmParseArgs({
+    required this.ommBody,
+    required this.tleBody,
+    required this.fetchedAt,
+    required this.fromCache,
+  });
+
+  final String ommBody;
+  final String tleBody;
+  final DateTime fetchedAt;
+  final bool fromCache;
+}
+
+/// Arguments for [_parseTleInIsolate].
+final class _TleParseArgs {
+  const _TleParseArgs({
+    required this.body,
+    required this.fetchedAt,
+    required this.fromCache,
+  });
+
+  final String body;
+  final DateTime fetchedAt;
+  final bool fromCache;
+}
+
+// ---------------------------------------------------------------------------
+// Top-level parse functions (isolate-safe)
+// ---------------------------------------------------------------------------
+
+/// Parses an OMM JSON body and stitches TLE lines; isolate-safe.
+///
+/// Must be a top-level function (not an instance method) so it can be
+/// passed to `Isolate.run` without capturing instance state.
+///
+/// NOTE: `ParseBenchmarkHook` is intentionally not forwarded here.
+/// Closures over non-sendable objects (including custom hook implementations)
+/// cannot cross isolate boundaries. Any hook injected into `TleRepositoryImpl`
+/// is silently dropped on this isolate path. Only the default
+/// `NullParseBenchmarkHook` is used inside the worker isolate.
+List<SatelliteTle> _parseOmmInIsolate(_OmmParseArgs args) {
+  const ommParser = OmmParser();
+  const stitcher = TleOmmStitcher();
+
+  final jsonList =
+      (jsonDecode(args.ommBody) as List<dynamic>).cast<Map<String, dynamic>>();
+
+  final results = <SatelliteTle>[];
+  for (final omm in ommParser.parseAllLazy(jsonList)) {
+    final tle = stitcher.stitch(
+      omm,
+      args.tleBody,
+      fetchedAt: args.fetchedAt,
+    );
+    results.add(
+      args.fromCache ? tle.copyWith(source: TleSource.local) : tle,
+    );
+  }
+  return results;
+}
+
+/// Parses a multi-record TLE body; isolate-safe.
+///
+/// Must be a top-level function (not an instance method) so it can be
+/// passed to `Isolate.run` without capturing instance state.
+///
+/// NOTE: `ParseBenchmarkHook` is intentionally not forwarded here.
+/// Closures over non-sendable objects (including custom hook implementations)
+/// cannot cross isolate boundaries. Any hook injected into `TleRepositoryImpl`
+/// is silently dropped on this isolate path. Only the default
+/// `NullParseBenchmarkHook` is used inside the worker isolate.
+List<SatelliteTle> _parseTleInIsolate(_TleParseArgs args) {
+  const tleParser = TleParser();
+  final records =
+      tleParser.parseAllLazy(args.body, fetchedAt: args.fetchedAt).toList();
+  if (args.fromCache) {
+    return records.map((r) => r.copyWith(source: TleSource.local)).toList();
+  }
+  return records;
 }

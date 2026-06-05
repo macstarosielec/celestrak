@@ -86,6 +86,9 @@ final class CelestrakClient {
   ///   `maxRetries − 1` retries). Must be at least 1.
   /// - [staleThreshold] — epoch age beyond which data is considered stale.
   /// - [clock] — injectable time source for TTL and staleness.
+  /// - [useIsolate] — when `true`, multi-record category parses are offloaded
+  ///   to a worker isolate via `Isolate.run`, keeping the main isolate free
+  ///   during large responses (e.g. Starlink). Defaults to `false`.
   CelestrakClient({
     required String cacheDir,
     Duration defaultTtl = kDefaultTtl,
@@ -94,6 +97,7 @@ final class CelestrakClient {
     int maxRetries = kDefaultMaxAttempts,
     Duration staleThreshold = defaultStaleThreshold,
     Clock clock = const SystemClock(),
+    bool useIsolate = false,
   }) : this._init(
           httpClient: http.Client(),
           cacheStore: FileCacheStore(Directory(cacheDir)),
@@ -104,6 +108,7 @@ final class CelestrakClient {
           staleThreshold: staleThreshold,
           clock: clock,
           ownsClient: true,
+          useIsolate: useIsolate,
         );
 
   /// Private initialising constructor. Ownership tracking is expressed only
@@ -118,6 +123,7 @@ final class CelestrakClient {
     required Duration staleThreshold,
     required Clock clock,
     required bool ownsClient,
+    required bool useIsolate,
   })  : _defaultTtl = defaultTtl,
         _defaultFormat = defaultFormat,
         _timeout = timeout,
@@ -138,6 +144,7 @@ final class CelestrakClient {
           ),
           cacheStore: cacheStore,
           clock: clock,
+          useIsolate: useIsolate,
         );
 
   /// Creates a [CelestrakClient] with a caller-supplied [CacheStore] and
@@ -149,6 +156,9 @@ final class CelestrakClient {
   ///
   /// [maxRetries] is the total number of attempts (1 initial + up to
   /// `maxRetries − 1` retries). Must be at least 1.
+  ///
+  /// [useIsolate] when `true`, multi-record category parses are offloaded to a
+  /// worker isolate via `Isolate.run`. Defaults to `false`.
   CelestrakClient.withStore({
     required http.Client httpClient,
     required CacheStore cacheStore,
@@ -158,6 +168,7 @@ final class CelestrakClient {
     int maxRetries = kDefaultMaxAttempts,
     Duration staleThreshold = defaultStaleThreshold,
     Clock clock = const SystemClock(),
+    bool useIsolate = false,
   }) : this._init(
           httpClient: httpClient,
           cacheStore: cacheStore,
@@ -168,6 +179,7 @@ final class CelestrakClient {
           staleThreshold: staleThreshold,
           clock: clock,
           ownsClient: false,
+          useIsolate: useIsolate,
         );
 
   /// Validates [maxRetries] and returns it unchanged, or throws
