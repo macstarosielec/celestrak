@@ -9,7 +9,6 @@
 library;
 
 import 'dart:async' show TimeoutException;
-import 'dart:io' show SocketException;
 
 /// Base type for every error raised by the celestrak package.
 ///
@@ -50,7 +49,7 @@ final class OmmParseException extends CelestrakException {
 /// [statusCode] is the HTTP status code of the last response, when available.
 /// [uri] is the target URI of the failing request.
 /// [cause] is the underlying exception that triggered the failure, when
-/// available (e.g. a [TimeoutException] or [SocketException]).
+/// available (e.g. a [TimeoutException] or a socket/IO exception).
 final class NetworkException extends CelestrakException {
   /// Creates a [NetworkException] describing [message].
   const NetworkException(
