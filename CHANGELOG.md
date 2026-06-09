@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-06-09
+
+### Fixed
+
+- Fixed WASM incompatibility in `http_transport.dart`. The unconditional
+  `import 'dart:io'` (used only for `SocketException`) is replaced with a
+  conditional import: `dart:io` is loaded on native platforms, a no-op stub on
+  web/WASM. `SocketException` handling is preserved on native; the package now
+  passes WASM compatibility checks on pub.dev.
+
 ## [1.0.2] - 2026-06-09
 
 ### Fixed
