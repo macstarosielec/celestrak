@@ -2,7 +2,7 @@ name: celestrak
 description: >-
   A pure-Dart client for fetching, parsing, and caching satellite TLE and OMM
   orbital data from CelesTrak and Space-Track. No Flutter dependency.
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/macstarosielec/celestrak
 issue_tracker: https://github.com/macstarosielec/celestrak/issues
 homepage: https://github.com/macstarosielec/celestrak
