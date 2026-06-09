@@ -5,10 +5,11 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:celestrak/src/domain/failures.dart';
+import 'package:celestrak/src/network/socket_exception_stub.dart'
+    if (dart.library.io) 'package:celestrak/src/network/socket_exception_io.dart';
 import 'package:http/http.dart' as http;
 
 /// Default maximum number of attempts (1 initial + 4 retries).
@@ -29,7 +30,7 @@ const Duration kBackoffMax = Duration(seconds: 10);
 /// Retries are attempted only for transient failures:
 /// - HTTP 5xx responses
 /// - [TimeoutException] (request exceeded `timeout`)
-/// - [SocketException] (network unreachable / DNS failure)
+/// - [http.ClientException] or a socket/IO exception (network unreachable / DNS failure)
 ///
 /// 4xx responses are **never** retried — they indicate a caller error and
 /// retrying would not help.
@@ -117,8 +118,14 @@ final class HttpTransport {
         rethrow;
       } on TimeoutException catch (e) {
         lastError = e;
-      } on SocketException catch (e) {
+      } on http.ClientException catch (e) {
         lastError = e;
+      } on Object catch (e) {
+        if (isSocketException(e)) {
+          lastError = e;
+        } else {
+          rethrow;
+        }
       }
     }
 
