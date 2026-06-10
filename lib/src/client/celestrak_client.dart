@@ -3,8 +3,9 @@
 ///
 /// Two constructors are provided:
 /// - The default [CelestrakClient.new] constructor: supply a `cacheDir` path;
-///   the client creates and *owns* an `http.Client` and a [FileCacheStore]
-///   backed by that directory. Call `dispose` when done.
+///   the client creates and *owns* an `http.Client` and a file-backed cache
+///   store rooted at `cacheDir`. On web/WASM, falls back to an in-memory
+///   store (see README). Call `dispose` when done.
 /// - [CelestrakClient.withStore]: inject your own [CacheStore] and
 ///   `http.Client`. The client does **not** close the supplied `http.Client`;
 ///   its lifecycle remains the caller's responsibility.
@@ -17,10 +18,9 @@
 /// - [TleRepository] — the cache/fetch/parse pipeline.
 library;
 
-import 'dart:io' show Directory;
-
 import 'package:celestrak/src/data/local/cache_store.dart';
-import 'package:celestrak/src/data/local/file_cache_store.dart';
+import 'package:celestrak/src/data/local/default_cache_store_stub.dart'
+    if (dart.library.io) 'package:celestrak/src/data/local/default_cache_store_io.dart';
 import 'package:celestrak/src/data/remote/celestrak_data_source.dart';
 import 'package:celestrak/src/data/tle_repository_impl.dart';
 import 'package:celestrak/src/domain/clock.dart';
@@ -72,9 +72,10 @@ import 'package:http/http.dart' as http;
 final class CelestrakClient {
   /// Creates a [CelestrakClient] that stores cached data under [cacheDir].
   ///
-  /// [cacheDir] is the filesystem path used as the root of the
-  /// [FileCacheStore]. The directory is created on first write if it does not
-  /// already exist.
+  /// [cacheDir] is the filesystem path used as the root of the file-backed
+  /// cache store. The directory is created on first write if it does not
+  /// already exist. On web/WASM, [cacheDir] is ignored and an in-memory
+  /// store is used instead.
   ///
   /// The client creates and **owns** an internal `http.Client`. Call
   /// [dispose] to close it when the client is no longer needed.
@@ -101,7 +102,7 @@ final class CelestrakClient {
     bool useIsolate = false,
   }) : this._init(
           httpClient: http.Client(),
-          cacheStore: FileCacheStore(Directory(cacheDir)),
+          cacheStore: defaultCacheStore(cacheDir),
           defaultTtl: defaultTtl,
           defaultFormat: defaultFormat,
           timeout: timeout,

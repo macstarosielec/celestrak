@@ -6,6 +6,10 @@ A pure-Dart client for fetching, parsing, and caching satellite **TLE** and
 
 No Flutter dependency - works on the Dart VM, servers, and Flutter alike.
 
+> **WASM:** The default `CelestrakClient(cacheDir: ...)` constructor uses
+> `FileCacheStore` which requires `dart:io` and is not WASM-compatible. For
+> web targets, use `CelestrakClient.withStore(MemoryCacheStore(), ...)` instead.
+
 ---
 
 ## Accuracy warning
