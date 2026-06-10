@@ -6,10 +6,11 @@
 library;
 
 import 'dart:convert' show jsonDecode, utf8;
-import 'dart:isolate' show Isolate;
 
 import 'package:celestrak/src/data/local/cache_key_builder.dart';
 import 'package:celestrak/src/data/local/cache_store.dart';
+import 'package:celestrak/src/data/parse_runner_stub.dart'
+    if (dart.library.io) 'package:celestrak/src/data/parse_runner_native.dart';
 import 'package:celestrak/src/data/parsers/omm_parser.dart';
 import 'package:celestrak/src/data/parsers/tle_omm_stitcher.dart';
 import 'package:celestrak/src/data/parsers/tle_parser.dart';
@@ -74,11 +75,11 @@ import 'package:celestrak/src/domain/tle_repository.dart';
 /// ## Isolate opt-in
 ///
 /// When `useIsolate` is `true`, multi-record parse operations for categories,
-/// by-name, by-group, and by-INTDES queries are offloaded to a worker isolate
-/// via `Isolate.run`, keeping the main isolate free during large category
-/// fetches (e.g. the full Starlink constellation). The opt-in is additive and
-/// does not affect correctness; the default (`false`) retains the previous
-/// synchronous behaviour.
+/// by-name, by-group, and by-INTDES queries are offloaded to a worker isolate,
+/// keeping the main isolate free during large category fetches (e.g. the full
+/// Starlink constellation). The opt-in is additive and does not affect
+/// correctness; the default (`false`) retains synchronous behaviour. On web
+/// and WASM the flag is ignored — parses run synchronously regardless.
 final class TleRepositoryImpl implements TleRepository {
   /// Creates a [TleRepositoryImpl].
   ///
@@ -88,7 +89,8 @@ final class TleRepositoryImpl implements TleRepository {
   /// defaults to [SystemClock].
   /// [useIsolate] when `true`, offloads multi-record JSON + TLE parses to a
   /// worker isolate so the main isolate is not blocked during large category
-  /// fetches. Defaults to `false`.
+  /// fetches. Defaults to `false`. Ignored on web and WASM, which have no
+  /// isolate support; parses run synchronously there regardless.
   const TleRepositoryImpl({
     required CelestrakDataSource dataSource,
     required CacheStore cacheStore,
@@ -718,7 +720,7 @@ final class TleRepositoryImpl implements TleRepository {
   /// JSON entries can be garbage-collected as iteration proceeds.
   ///
   /// When [_useIsolate] is `true`, the parse is offloaded to a worker isolate
-  /// via `Isolate.run` so the main isolate is not blocked.
+  /// so the main isolate is not blocked (no-op on web and WASM).
   Future<List<SatelliteTle>> _parseCategoryOmm(
     String ommBody, {
     required String tleBody,
@@ -732,7 +734,7 @@ final class TleRepositoryImpl implements TleRepository {
       fromCache: fromCache,
     );
     if (_useIsolate) {
-      return Isolate.run(() => _parseOmmInIsolate(args));
+      return runParse(() => _parseOmmInIsolate(args));
     }
     return Future.value(_parseOmmInIsolate(args));
   }
@@ -745,7 +747,7 @@ final class TleRepositoryImpl implements TleRepository {
   /// for the multiple-of-3 guard; see [TleParser.parseAllLazy] for details.
   ///
   /// When [_useIsolate] is `true`, the parse is offloaded to a worker isolate
-  /// via `Isolate.run` so the main isolate is not blocked.
+  /// so the main isolate is not blocked (no-op on web and WASM).
   Future<List<SatelliteTle>> _parseCategoryTle(
     String body, {
     required DateTime fetchedAt,
@@ -757,7 +759,7 @@ final class TleRepositoryImpl implements TleRepository {
       fromCache: fromCache,
     );
     if (_useIsolate) {
-      return Isolate.run(() => _parseTleInIsolate(args));
+      return runParse(() => _parseTleInIsolate(args));
     }
     return Future.value(_parseTleInIsolate(args));
   }

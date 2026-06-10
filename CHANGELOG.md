@@ -4,6 +4,18 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-06-10
+
+### Fixed
+
+- Fixed WASM incompatibility caused by an unconditional `dart:isolate` import
+  in `tle_repository_impl.dart`. The `Isolate.run` call used for the optional
+  `useIsolate` performance feature is now gated behind a conditional import:
+  `parse_runner_native.dart` (loaded on native via `dart.library.io`) wraps
+  `Isolate.run`; `parse_runner_stub.dart` (loaded on web/WASM) runs the parse
+  synchronously instead. The `useIsolate` API is unchanged; the flag is
+  silently ignored on web/WASM.
+
 ## [1.0.4] - 2026-06-10
 
 ### Fixed
@@ -18,8 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `spacetrack_data_source.dart` — replaced `import 'dart:io' show
     SocketException` with the same conditional-import shim introduced in
     v1.0.3 (`socket_exception_io.dart` / `socket_exception_stub.dart`).
-  - The package now passes pub.dev WASM compatibility checks across the full
-    public API surface.
 
 ## [1.0.3] - 2026-06-09
 
