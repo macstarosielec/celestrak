@@ -45,7 +45,6 @@ import 'package:celestrak/src/network/socket_exception_stub.dart'
     if (dart.library.io) 'package:celestrak/src/network/socket_exception_io.dart';
 import 'package:http/http.dart' as http;
 
-
 /// Base URL for the Space-Track REST API.
 ///
 /// All login and query paths are resolved relative to this origin.
