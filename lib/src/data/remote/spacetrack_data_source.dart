@@ -38,10 +38,11 @@
 library;
 
 import 'dart:async' show TimeoutException;
-import 'dart:io' show SocketException;
 
 import 'package:celestrak/src/domain/clock.dart';
 import 'package:celestrak/src/domain/failures.dart';
+import 'package:celestrak/src/network/socket_exception_stub.dart'
+    if (dart.library.io) 'package:celestrak/src/network/socket_exception_io.dart';
 import 'package:http/http.dart' as http;
 
 /// Base URL for the Space-Track REST API.
@@ -241,10 +242,11 @@ final class SpaceTrackDataSource {
         uri: uri,
         cause: e,
       );
-    } on SocketException catch (e) {
+    } catch (e) {
+      if (!isSocketException(e)) rethrow;
       _loggedIn = false;
       throw NetworkException(
-        'Space-Track login socket error: ${e.message}',
+        'Space-Track login socket error: $e',
         uri: uri,
         cause: e,
       );
@@ -370,9 +372,10 @@ final class SpaceTrackDataSource {
         uri: uri,
         cause: e,
       );
-    } on SocketException catch (e) {
+    } catch (e) {
+      if (!isSocketException(e)) rethrow;
       throw NetworkException(
-        'Space-Track socket error: ${e.message}',
+        'Space-Track socket error: $e',
         uri: uri,
         cause: e,
       );

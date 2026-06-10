@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-06-10
+
+### Fixed
+
+- Completed WASM compatibility. Removed all unconditional `dart:io` imports
+  from the public API chain:
+  - `celestrak_client.dart` — replaced `import 'dart:io' show Directory` and
+    `FileCacheStore(Directory(cacheDir))` with a conditional-import factory
+    (`default_cache_store_io.dart` / `default_cache_store_stub.dart`). On
+    web/WASM, `cacheDir` is ignored and a `MemoryCacheStore` is used; on
+    native, behaviour is unchanged.
+  - `spacetrack_data_source.dart` — replaced `import 'dart:io' show
+    SocketException` with the same conditional-import shim introduced in
+    v1.0.3 (`socket_exception_io.dart` / `socket_exception_stub.dart`).
+  - The package now passes pub.dev WASM compatibility checks across the full
+    public API surface.
+
 ## [1.0.3] - 2026-06-09
 
 ### Fixed
@@ -208,6 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial package scaffold.
 
+[1.0.4]: https://github.com/macstarosielec/celestrak/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/macstarosielec/celestrak/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/macstarosielec/celestrak/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/macstarosielec/celestrak/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/macstarosielec/celestrak/compare/v0.0.1...v1.0.0
