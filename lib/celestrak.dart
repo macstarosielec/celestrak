@@ -30,13 +30,18 @@
 ///   fetched in OMM format.
 /// - [OmmParser] — parses CelesTrak OMM JSON into [Omm] values; exposed for
 ///   advanced callers who process raw CelesTrak responses directly.
+/// - [SatcatParser] — parses CelesTrak SATCAT JSON and CSV into [SatcatEntry]
+///   values; bulk parses return a [SatcatParseResult] carrying the skip count.
+/// - [SatcatEntry] / [SatcatObjectType] — SATCAT per-object metadata record
+///   (owner, launch, decay, object type, status), joinable to GP data by
+///   `noradId`.
 /// - [SatelliteCategory], [TleSource], [CelestrakFormat] — enumerations for
 ///   category queries, record provenance, and wire format selection.
 /// - [CelestrakException] and subtypes ([AuthenticationException],
 ///   [CacheMissException], [NetworkException], [OmmParseException],
-///   [RateLimitException], [SatelliteNotFoundException], [TleParseException])
-///   — typed error hierarchy; no raw `http` or `dart:io` exception escapes
-///   the public API.
+///   [RateLimitException], [SatcatParseException],
+///   [SatelliteNotFoundException], [TleParseException]) - typed error
+///   hierarchy; no raw `http` or `dart:io` exception escapes the public API.
 /// - [TleRepository] — abstract repository interface; implement to provide
 ///   a custom cache/fetch/parse pipeline.
 /// - [CacheStore] — abstract interface for key-value byte caching; pass a
@@ -67,11 +72,13 @@ import 'package:celestrak/src/data/local/cache_store.dart';
 import 'package:celestrak/src/data/local/memory_cache_store.dart';
 import 'package:celestrak/src/data/parsers/omm_parser.dart';
 import 'package:celestrak/src/data/parsers/parse_benchmark_hook.dart';
+import 'package:celestrak/src/data/parsers/satcat_parser.dart';
 import 'package:celestrak/src/domain/clock.dart';
 import 'package:celestrak/src/domain/constants.dart';
 import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/omm.dart';
+import 'package:celestrak/src/domain/satcat_entry.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
 import 'package:celestrak/src/domain/staleness.dart';
 import 'package:celestrak/src/domain/tle_repository.dart';
@@ -85,6 +92,7 @@ export 'src/data/local/cache_store.dart';
 export 'src/data/local/memory_cache_store.dart';
 export 'src/data/parsers/omm_parser.dart';
 export 'src/data/parsers/parse_benchmark_hook.dart';
+export 'src/data/parsers/satcat_parser.dart';
 export 'src/domain/clock.dart';
 export 'src/domain/constants.dart';
 export 'src/domain/enums.dart';
