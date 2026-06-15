@@ -14,7 +14,8 @@
 ///   CacheMissException, NetworkException, OmmParseException,
 ///   RateLimitException, SatelliteNotFoundException, TleParseException,
 ///   TleRepository, Omm, SatelliteTle, StalenessChecker,
-///   defaultStaleThreshold.
+///   defaultStaleThreshold, SatcatOwner, satcatOwnerForCode, SatcatEntry,
+///   SatcatObjectType, SatcatParser, SatcatParseException.
 ///
 /// Internal symbols not exported (compile-time-checked via
 /// `dart analyze` passing without undefined-identifier errors):
@@ -28,7 +29,7 @@ import 'package:test/test.dart';
 void main() {
   // ── Public symbols resolve ─────────────────────────────────────────────────
 
-  group('Public API barrel — all intentional exports resolve', () {
+  group('Public API barrel - all intentional exports resolve', () {
     test('CelestrakClient is accessible', () {
       // Construction requires real deps; just check the type resolves.
       expect(CelestrakClient, isNotNull);
@@ -162,12 +163,61 @@ void main() {
     test('defaultStaleThreshold is accessible', () {
       expect(defaultStaleThreshold, const Duration(days: 3));
     });
+
+    test('SatcatOwner is accessible', () {
+      const owner = SatcatOwner(code: 'US', name: 'United States');
+      expect(owner.code, 'US');
+    });
+
+    test('satcatOwnerForCode is accessible', () {
+      expect(satcatOwnerForCode('FR').isEuSovereign, isTrue);
+    });
+
+    test('SatcatEntry is accessible', () {
+      const entry = SatcatEntry(
+        noradId: 25544,
+        name: 'ISS (ZARYA)',
+        ownerCode: 'US',
+        objectType: SatcatObjectType.payload,
+      );
+      expect(entry.noradId, 25544);
+      expect(entry.isPayload, isTrue);
+      expect(entry.owner.name, 'United States');
+    });
+
+    test('SatcatObjectType enum is accessible', () {
+      expect(SatcatObjectType.fromCode('PAYLOAD'), SatcatObjectType.payload);
+      expect(
+        SatcatObjectType.fromCode('ROCKET BODY'),
+        SatcatObjectType.rocketBody,
+      );
+      expect(SatcatObjectType.fromCode('DEBRIS'), SatcatObjectType.debris);
+      expect(SatcatObjectType.fromCode('???'), SatcatObjectType.unknown);
+    });
+
+    test('SatcatParser is accessible', () {
+      const parser = SatcatParser();
+      final entry = parser.parseJson(<String, dynamic>{
+        'NORAD_CAT_ID': 25544,
+        'OBJECT_NAME': 'ISS (ZARYA)',
+        'OWNER': 'US',
+        'OBJECT_TYPE': 'PAYLOAD',
+      });
+      expect(entry.noradId, 25544);
+      expect(entry.objectType, SatcatObjectType.payload);
+    });
+
+    test('SatcatParseException is accessible', () {
+      const e = SatcatParseException('x', field: 'NORAD_CAT_ID');
+      expect(e, isA<CelestrakException>());
+      expect(e.field, 'NORAD_CAT_ID');
+    });
   });
 
   // ── Internal symbols are NOT in the barrel ─────────────────────────────────
   // These are compile-time checks: if the barrel ever accidentally exports
   // an internal symbol, `dart analyze` will flag it as an unused import here
-  // — or, if we try to use it via the barrel, an undefined-identifier error.
+  // - or, if we try to use it via the barrel, an undefined-identifier error.
   //
   // We verify absence indirectly: the test file only imports
   // `package:celestrak/celestrak.dart` (the barrel). If any of the "internal"

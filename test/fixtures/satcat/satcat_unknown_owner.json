@@ -1,0 +1,16 @@
+{
+  "OBJECT_NAME": "MYSTERY SAT",
+  "OBJECT_ID": "2099-001A",
+  "NORAD_CAT_ID": 999999,
+  "OBJECT_TYPE": "PAYLOAD",
+  "OPS_STATUS_CODE": "+",
+  "OWNER": "ZZZ",
+  "LAUNCH_DATE": "2099-01-01",
+  "LAUNCH_SITE": "TBD",
+  "DECAY_DATE": null,
+  "PERIOD": 95.0,
+  "INCLINATION": 53.0,
+  "APOGEE": 550,
+  "PERIGEE": 540,
+  "RCS": null
+}
