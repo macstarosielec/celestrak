@@ -43,6 +43,30 @@ final class OmmParseException extends CelestrakException {
       : 'OmmParseException($field): $message';
 }
 
+/// Thrown when CelesTrak SATCAT JSON or CSV cannot be parsed into a
+/// `SatcatEntry`.
+///
+/// Raised for single-record (`CATNR`) fetches whose body is malformed, empty,
+/// or missing the required `NORAD_CAT_ID`. Bulk (full-catalog or group) parses
+/// never throw on one bad row: a row that fails to yield a valid record is
+/// skipped and counted instead.
+///
+/// [field] names the offending SATCAT column when the failure is specific to a
+/// single field (missing, null, or an unexpected type or format).
+final class SatcatParseException extends CelestrakException {
+  /// Creates a [SatcatParseException] describing [message], optionally for a
+  /// specific SATCAT [field].
+  const SatcatParseException(super.message, {this.field});
+
+  /// The SATCAT field that failed to parse, when applicable.
+  final String? field;
+
+  @override
+  String toString() => field == null
+      ? 'SatcatParseException: $message'
+      : 'SatcatParseException($field): $message';
+}
+
 /// Thrown when an HTTP request fails after all retry attempts are exhausted,
 /// or immediately on a non-retryable error (e.g. a 4xx response).
 ///
