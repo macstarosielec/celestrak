@@ -90,6 +90,7 @@ export 'src/domain/constants.dart';
 export 'src/domain/enums.dart';
 export 'src/domain/failures.dart';
 export 'src/domain/omm.dart';
+export 'src/domain/satcat_entry.dart';
 export 'src/domain/satellite_tle.dart';
 export 'src/domain/staleness.dart';
 export 'src/domain/tle_repository.dart';
