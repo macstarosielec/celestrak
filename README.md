@@ -6,9 +6,10 @@ A pure-Dart client for fetching, parsing, and caching satellite **TLE** and
 
 No Flutter dependency - works on the Dart VM, servers, and Flutter alike.
 
-> **WASM:** The default `CelestrakClient(cacheDir: ...)` constructor uses
-> `FileCacheStore` which requires `dart:io` and is not WASM-compatible. For
-> web targets, use `CelestrakClient.withStore(MemoryCacheStore(), ...)` instead.
+> **Web / WASM:** The default `CelestrakClient(cacheDir: ...)` constructor is
+> web- and WASM-compatible. On web/WASM, `cacheDir` is ignored and an in-memory
+> `MemoryCacheStore` is used automatically (no persistence). For a custom or
+> persistent store on any platform, use `CelestrakClient.withStore(...)`.
 
 ---
 
@@ -331,8 +332,9 @@ This package is **pure Dart** and has no dependency on Flutter. It runs on:
 
 - **Dart VM** - servers, CLI tools, background workers.
 - **Flutter** - Android, iOS, macOS, Windows, Linux.
-- **Flutter Web** - usable with a custom `CacheStore`; the default constructor
-  requires `dart:io` and will not compile on web (see the Web section below).
+- **Flutter Web / WASM** - the default constructor works; on web it
+  transparently falls back to an in-memory cache (`cacheDir` is ignored). For
+  persistent caching on web, supply your own `CacheStore` (see the Web section below).
 
 No Flutter SDK is required to use this package in a Dart-only project.
 
@@ -341,12 +343,13 @@ The only runtime dependencies are `http` (cross-platform HTTP client) and
 supply any compatible `http.Client` implementation for your target
 (the default `IOClient` on VM/Flutter native, `BrowserClient` on web).
 
-File caching (`FileCacheStore`) uses `dart:io` and is therefore available
-on all non-web platforms. On Flutter Web, `dart:io` is unavailable - the
-default `CelestrakClient` constructor unconditionally imports `dart:io` and
-**will not compile on web**. There is no automatic fallback.
+File caching (`FileCacheStore`) uses `dart:io` and is the default on all
+non-web platforms. On Flutter Web and WASM, `dart:io` is unavailable, so the
+default constructor **transparently falls back to a `MemoryCacheStore`**: a
+conditional import ignores `cacheDir`, and the package compiles and runs on web
+with no code change.
 
-To use the package on Flutter Web, construct the client via
+For explicit control, or a persistent store on web, construct the client via
 `CelestrakClient.withStore` and pass a `MemoryCacheStore` (or any
 `CacheStore` implementation that does not rely on `dart:io`):
 
@@ -519,15 +522,16 @@ pulled in by this package.
 
 ## Web: memory-only cache
 
-On Flutter Web, `dart:io` is unavailable, so persistent file caching is not
-supported. The default `CelestrakClient` constructor unconditionally imports
-`dart:io` and **will not compile on web**. There is no automatic fallback.
+On Flutter Web and WASM, `dart:io` is unavailable, so persistent file caching is
+not supported. The default `CelestrakClient` constructor handles this
+**automatically**: via a conditional import it ignores `cacheDir` and uses an
+in-memory `MemoryCacheStore` on web, so it compiles and runs there with no code
+change.
 
-To use the package on Flutter Web, construct the client via
-`CelestrakClient.withStore` and pass a `MemoryCacheStore` (or any `CacheStore`
-implementation that does not rely on `dart:io`). Data is cached for the
-lifetime of the page but nothing is written to disk and the cache is lost on
-reload.
+For explicit control, construct the client via `CelestrakClient.withStore` and
+pass a `MemoryCacheStore` (or any `CacheStore` implementation that does not rely
+on `dart:io`). Data is cached for the lifetime of the page but nothing is written
+to disk and the cache is lost on reload.
 
 If you need cross-session persistence on web, supply your own `CacheStore`
 implementation backed by `IndexedDB` or `localStorage` and pass it via
