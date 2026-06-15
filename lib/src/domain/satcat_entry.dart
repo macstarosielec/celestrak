@@ -10,6 +10,7 @@
 /// - [ADR-0014: SATCAT as a separate concern](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0014-satcat-separate-concern.md)
 library;
 
+import 'package:celestrak/src/domain/satcat_owner.dart';
 import 'package:meta/meta.dart';
 
 /// Classification of a catalogued space object by the SATCAT `OBJECT_TYPE`
@@ -169,9 +170,13 @@ final class SatcatEntry {
   /// Whether this object is a payload ([SatcatObjectType.payload]).
   bool get isPayload => objectType == SatcatObjectType.payload;
 
-  // TODO(CEL-139): expose `SatcatOwner get owner` (resolve `ownerCode` via the
-  // bundled owner-code -> country/region mapping, P9.3 / ADR-15). Deferred from
-  // P9.1, which ships the raw `ownerCode` only.
+  /// The owner resolved from [ownerCode] against the bundled, offline
+  /// owner-code -> country/region table (see [satcatOwnerForCode]).
+  ///
+  /// Pure and offline; never throws. An unmapped or empty [ownerCode] yields a
+  /// passthrough [SatcatOwner] whose `name` equals the code and whose `region`
+  /// is `null`.
+  SatcatOwner get owner => satcatOwnerForCode(ownerCode);
 
   @override
   bool operator ==(Object other) {
