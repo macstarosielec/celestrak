@@ -366,6 +366,69 @@ backed by `localStorage`, IndexedDB, or similar.
 
 ---
 
+## SATCAT metadata (owner, launch, decay, object type)
+
+`SatcatClient` fetches CelesTrak **SATCAT** (Satellite Catalog) metadata for a
+catalogued object: owner/country, launch date and site, decay date, object
+type, operational status, and radar cross section. It is a **separate concern**
+from the GP/OMM orbital data - metadata only, no orbital propagation - and is
+**joinable to a `SatelliteTle` by NORAD ID**. The package never merges the two:
+the `SatelliteTle`/`Omm` contract is unchanged.
+
+`SatcatClient` mirrors `CelestrakClient`'s construction and caching, with a
+longer default TTL (7 days) and staleness threshold (30 days) because SATCAT
+metadata changes slowly.
+
+```dart
+import 'package:celestrak/celestrak.dart';
+
+final satcat = SatcatClient(cacheDir: '.dart_tool/celestrak_cache');
+try {
+  final iss = await satcat.fetchByNoradId(25544);
+  final owner = iss.owner;
+  print('${iss.name}: ${owner.name} (EU-sovereign: ${owner.isEuSovereign})');
+  print('On orbit: ${iss.isOnOrbit}, launched ${iss.launchDate}');
+} finally {
+  satcat.dispose();
+}
+```
+
+### Indexed lookup over the full catalogue
+
+`lookup(noradId)` answers repeated point queries against the cached full
+catalogue in O(1), returning `null` when the object is absent. The first call
+fetches and indexes the catalogue; subsequent calls while the cache is fresh
+are served from memory with zero network calls.
+
+```dart
+final entry = await satcat.lookup(25544); // null if not catalogued
+```
+
+### Owner mapping (offline)
+
+`SatcatEntry.owner` resolves the raw owner code to a `SatcatOwner` with a human
+country name, region, and an EU-sovereign flag. The mapping is a compile-time
+`const`, so it works offline with no network or runtime dependency. Use
+`satcatOwnerForCode('FR')` directly when you only have a code.
+
+### Joining GP and SATCAT
+
+```dart
+final celestrak = CelestrakClient(cacheDir: '.dart_tool/celestrak_cache');
+final satcat = SatcatClient(cacheDir: '.dart_tool/celestrak_cache');
+
+final tle = await celestrak.fetchByNoradId(25544);   // orbital elements
+final meta = await satcat.fetchByNoradId(25544);      // SATCAT metadata
+assert(tle.noradId == meta.noradId);                  // join key
+```
+
+See `example/satcat_lookup.dart` for a runnable program.
+
+Space-Track SATCAT is also available, credential-gated, via
+`SpaceTrackClient.fetchSatcatByQuery`.
+
+---
+
 ## Space-Track data source (optional)
 
 [CelesTrak](https://celestrak.org) works with no credentials and covers the

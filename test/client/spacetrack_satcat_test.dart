@@ -168,6 +168,40 @@ void main() {
       expect(entry.objectId, '1998-067A');
     });
 
+    test('falls back to SATNAME when OBJECT_NAME is absent', () async {
+      // A record carrying only the legacy SATNAME key (no OBJECT_NAME) must
+      // still resolve the name via the fallback branch.
+      final client = _client(
+        (_) async => http.Response(
+          '[{"NORAD_CAT_ID": "25544", "SATNAME": "ISS (ZARYA)"}]',
+          200,
+        ),
+      );
+      addTearDown(client.dispose);
+
+      final entry =
+          await client.fetchSatcatByQuery(SpaceTrackQuery.byNoradId(25544));
+
+      expect(entry.name, 'ISS (ZARYA)');
+    });
+
+    test('falls back to INTLDES when OBJECT_ID is absent', () async {
+      // A record carrying only the legacy INTLDES key (no OBJECT_ID) must
+      // still resolve the objectId via the fallback branch.
+      final client = _client(
+        (_) async => http.Response(
+          '[{"NORAD_CAT_ID": "25544", "INTLDES": "1998-067A"}]',
+          200,
+        ),
+      );
+      addTearDown(client.dispose);
+
+      final entry =
+          await client.fetchSatcatByQuery(SpaceTrackQuery.byNoradId(25544));
+
+      expect(entry.objectId, '1998-067A');
+    });
+
     test('parses launchDate from the LAUNCH field as UTC', () async {
       final client = _client(
         (_) async => http.Response(_issSatcatFixture, 200),

@@ -504,18 +504,16 @@ void main() {
       expect(ex.statusCode, 500);
     });
 
-    test('enforces the minimum inter-request interval', () async {
-      // Advance the clock past the interval between calls; confirms the
-      // throttle path is exercised on the SATCAT request without a real sleep.
+    test('delays a second request within the minimum interval', () async {
+      // The FakeClock is never advanced, so the second call sees zero elapsed
+      // time and must wait out the full interval. Measuring real wall-clock
+      // proves _enforceRateLimit actually delayed the SATCAT request - a
+      // clock-advance assertion would pass even if the throttle were removed.
+      const interval = Duration(milliseconds: 100);
       final clock = FakeClock(DateTime.utc(2024, 1, 15, 12));
-      const interval = Duration(seconds: 2);
-      final callTimes = <DateTime>[];
 
       final src = SpaceTrackDataSource(
-        client: MockClient((request) async {
-          callTimes.add(clock.now);
-          return http.Response('[]', 200);
-        }),
+        client: MockClient((_) async => http.Response('[]', 200)),
         identity: 'user@example.com',
         password: 'password',
         baseUrl: 'https://spacetrack.test',
@@ -524,15 +522,14 @@ void main() {
         clock: clock,
       );
 
-      await src.fetchSatcatByNoradId(25544);
-      clock.advance(const Duration(seconds: 3));
+      // First call has no predecessor, so it is not throttled.
       await src.fetchSatcatByNoradId(25544);
 
-      expect(callTimes, hasLength(2));
-      expect(
-        callTimes[1].difference(callTimes[0]),
-        const Duration(seconds: 3),
-      );
+      final stopwatch = Stopwatch()..start();
+      await src.fetchSatcatByNoradId(25544);
+      stopwatch.stop();
+
+      expect(stopwatch.elapsed, greaterThanOrEqualTo(interval));
     });
   });
 

@@ -4,6 +4,38 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-16
+
+### Added
+
+- SATCAT (Satellite Catalog) metadata support: per-object owner/country, launch
+  date and site, decay date, object type, operational status, and radar cross
+  section. SATCAT is a separate concern joinable to a `SatelliteTle` by NORAD
+  ID; it does not change the existing `SatelliteTle`/`Omm` contract and adds no
+  orbital propagation.
+- `SatcatClient` facade, a parallel to `CelestrakClient` with the same
+  construction ergonomics (`SatcatClient.new` with a `cacheDir`, or
+  `SatcatClient.withStore`). Methods: `fetchByNoradId`, `fetchCategory`,
+  `fetchCategoryByGroup`, `fetchByIntlDesignator`, `fetchAll`, an indexed
+  `lookup(noradId)` (O(1) over the cached full catalogue, `null` when absent),
+  per-query `*Age` cache-age inspection, `clearCache`, and `dispose`.
+- `SatcatEntry` immutable model and `SatcatObjectType` enum, parsed from the
+  CelesTrak `satcat/records.php` JSON and CSV formats (`SatcatParser`).
+- `SatcatOwner` and the offline `satcatOwnerForCode` mapping that resolves a
+  raw owner code to a country/region with an EU-sovereign flag. The mapping is
+  a compile-time `const`, so it is always available offline and adds no runtime
+  dependency.
+- Dataset-discriminated SATCAT cache with a longer default TTL (7 days) and
+  staleness threshold (30 days) than the GP path, sharing the existing
+  cache-dir seam and `CacheStore` interface. New constants `kSatcatDefaultTtl`
+  and `kSatcatStaleThreshold`.
+- `SatcatParseException`, a sibling of `OmmParseException` in the sealed
+  exception tree, for malformed single-record SATCAT responses.
+- Optional Space-Track SATCAT support via `SpaceTrackClient.fetchSatcatByQuery`,
+  credential-gated and throttled exactly like the GP path.
+- New example `example/satcat_lookup.dart`: fetches the ISS SATCAT record and
+  prints its owner country and EU-sovereign flag.
+
 ## [1.0.5] - 2026-06-10
 
 ### Fixed
