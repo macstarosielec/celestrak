@@ -6,10 +6,10 @@
 /// bundled, compile-time `const` table. The lookup is pure and offline: no
 /// network, no I/O, no asset bundling, no `path_provider`.
 ///
-/// The bundled table is a deliberately conservative, high-confidence subset of
-/// the CelesTrak owner codes; unmapped codes degrade to a passthrough owner.
-/// Full reconciliation against `celestrak.org/satcat/sources.php` is tracked
-/// as CEL-150. See `kSatcatOwnerCodes` for the table itself.
+/// The bundled table is reconciled against the authoritative
+/// `celestrak.org/satcat/sources.php` list; unmapped codes (and the `TBD` /
+/// `UNK` administrative sentinels) degrade to a passthrough owner. See
+/// `kSatcatOwnerCodes` for the table itself.
 ///
 /// See also:
 /// - [ADR-0015: bundled owner mapping](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0015-bundled-owner-mapping.md)
@@ -30,9 +30,10 @@ import 'package:meta/meta.dart';
 /// - an **EU-27 member state** (the 27 current members of the European Union),
 ///   or
 /// - a **European multinational organisation controlled by EU members**: the
-///   European Space Agency (`ESA`), EUMETSAT (`EUME`), EUTELSAT (`EUTE`), or a
-///   bilateral operator whose every participant is an EU member state, such as
-///   the joint France/Germany operator (`FGER`).
+///   European Space Agency (`ESA`) and its predecessor ESRO (`ESRO`), EUMETSAT
+///   (`EUME`), EUTELSAT (`EUTE`), or a bilateral operator whose every
+///   participant is an EU member state, such as the joint France/Germany
+///   (`FGER`) and France/Italy (`FRIT`) operators.
 ///
 /// It is deliberately `false` for non-EU European nations - for example the
 /// United Kingdom (`UK`), Norway (`NOR`), and Switzerland (`SWTZ`) - for the

@@ -4,6 +4,29 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-16
+
+### Added
+
+- Full reconciliation of the offline SATCAT owner-code table
+  (`satcatOwnerForCode`) against the authoritative
+  `celestrak.org/satcat/sources.php` list, expanding it from a conservative
+  46-code subset to the complete 130-code set (all CelesTrak source codes
+  except the `TBD` / `UNK` administrative sentinels, which remain passthrough).
+  This resolves CEL-150.
+
+### Fixed
+
+- Corrected owner-code errors in the previous knowledge-built table: `AUS` now
+  resolves to Australia (Oceania) rather than Austria, and Austria is the
+  separate code `ASRA`; South Africa is `SAFR` (was the non-CelesTrak `RSA`)
+  and Taiwan is `ROC` (was the non-CelesTrak `TWN`). The invented `AUST` /
+  `RSA` / `TWN` codes are gone and now degrade to passthrough.
+- Verified every `isEuSovereign` flag against the real source list; added the
+  EU members `ASRA`, `BUL`, `HRV`, `EST`, `IRL`, `LTU`, `ROM`, `SVN` and the
+  all-EU-participant operators `FRIT` (France/Italy) and `ESRO` (the ESA
+  predecessor) to the EU-sovereign set.
+
 ## [1.1.0] - 2026-06-16
 
 ### Added
@@ -263,6 +286,8 @@ First stable release. Public API frozen (`package:celestrak`); no breaking chang
 ### Added
 - Initial package scaffold.
 
+[1.2.0]: https://github.com/macstarosielec/celestrak/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/macstarosielec/celestrak/compare/v1.0.5...v1.1.0
 [1.0.5]: https://github.com/macstarosielec/celestrak/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/macstarosielec/celestrak/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/macstarosielec/celestrak/compare/v1.0.2...v1.0.3

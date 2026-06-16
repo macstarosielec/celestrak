@@ -2,21 +2,16 @@
 ///
 /// CelesTrak uses bespoke, *non-ISO* owner/source codes (for example `PRC` for
 /// China, `CIS` for the former-USSR/Russia bloc, `GER` for Germany). The
-/// authoritative list is published at `celestrak.org/satcat/sources.php`.
+/// authoritative list is published at `celestrak.org/satcat/sources.php` and
+/// this table is reconciled against it (CEL-150): every source code on that
+/// page is mapped here, except the two administrative sentinels `TBD`
+/// ("To Be Determined") and `UNK` ("Unknown"), which are not real owners and
+/// are deliberately left to the passthrough path below.
 ///
-/// IMPORTANT: this is a deliberately CONSERVATIVE, high-confidence subset. At
-/// the time it was authored the live CelesTrak sources list was unreachable
-/// from every network path, so the table was built from established knowledge
-/// rather than scraped from the authoritative source. To keep the package
-/// correct, only codes whose exact CelesTrak spelling and country/organisation
-/// meaning are well-established are included here; the speculative long tail of
-/// obscure single-country codes was intentionally OMITTED. Omission is safe:
-/// any code absent from this map degrades gracefully to a passthrough
-/// [SatcatOwner] that echoes the raw code (see [satcatOwnerForCode]), so an
-/// unmapped owner is never an error - only an un-prettified one.
-///
-/// Full reconciliation of this table against the authoritative
-/// `celestrak.org/satcat/sources.php` list is tracked as CEL-150.
+/// Any code absent from this map degrades gracefully to a passthrough
+/// [SatcatOwner] that echoes the raw code (see [satcatOwnerForCode]), so a code
+/// CelesTrak adds before this table catches up is never an error - only an
+/// un-prettified one.
 ///
 /// The map is a compile-time `const`: it carries no assets, performs no I/O,
 /// and needs no `path_provider`. It is pure-Dart and tree-shakeable, so unused
@@ -25,6 +20,9 @@
 /// Each entry maps a raw SATCAT `OWNER` code to a human-readable [SatcatOwner]
 /// carrying the country/organisation name, a coarse continental `region`, and
 /// the `isEuSovereign` flag (see the criterion documented on [SatcatOwner]).
+/// Names are cleaned, ASCII, human-readable labels rather than verbatim copies
+/// of the CelesTrak descriptions (e.g. `China`, not "People's Republic of
+/// China"; `Morocco`, not the site's "Morroco" typo).
 ///
 /// See also:
 /// - [ADR-0015: bundled owner mapping](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0015-bundled-owner-mapping.md)
@@ -54,7 +52,7 @@ const String _oceania = 'Oceania';
 /// Region label for multinational / multi-region owners and consortia.
 const String _multinational = 'Multinational';
 
-/// The bundled CelesTrak SATCAT owner/source code table (conservative subset).
+/// The bundled CelesTrak SATCAT owner/source code table.
 ///
 /// Keys are the raw, upper-case CelesTrak `OWNER` codes exactly as they appear
 /// in SATCAT records. Use [satcatOwnerForCode] for lookups: it normalises the
@@ -72,10 +70,17 @@ const String _multinational = 'Multinational';
 const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
   // -- European multinational space organisations (EU-sovereign) -------------
   // EU-sovereign per the criterion on SatcatOwner: European multinational
-  // organisations controlled by EU member states.
+  // organisations controlled by EU member states. ESRO is the direct
+  // predecessor of ESA (merged into it in 1975) and is classified identically.
   'ESA': SatcatOwner(
     code: 'ESA',
     name: 'European Space Agency',
+    region: _europe,
+    isEuSovereign: true,
+  ),
+  'ESRO': SatcatOwner(
+    code: 'ESRO',
+    name: 'European Space Research Organization',
     region: _europe,
     isEuSovereign: true,
   ),
@@ -92,20 +97,28 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
     region: _europe,
     isEuSovereign: true,
   ),
-  // FGER is the CelesTrak code for joint France/Germany missions (for example
-  // the Symphonie and TerraSAR-X/TanDEM-X heritage). It is a bilateral
-  // operator whose every participant (France and Germany) is an EU-27 member
-  // state, so it is EU-sovereign and lives in the Europe region.
+  // FGER and FRIT are CelesTrak codes for joint missions whose every
+  // participant is an EU-27 member state (France/Germany, France/Italy), so by
+  // the all-EU-participant rule they are EU-sovereign and sit in Europe.
   'FGER': SatcatOwner(
     code: 'FGER',
     name: 'France/Germany',
     region: _europe,
     isEuSovereign: true,
   ),
+  'FRIT': SatcatOwner(
+    code: 'FRIT',
+    name: 'France/Italy',
+    region: _europe,
+    isEuSovereign: true,
+  ),
 
   // -- EU-27 member states (EU-sovereign) ------------------------------------
-  'AUS': SatcatOwner(
-    code: 'AUS',
+  // The 23 EU-27 members that have a CelesTrak owner code. Cyprus, Latvia,
+  // Malta, and Slovakia have no code on the authoritative list and so are
+  // (correctly) absent.
+  'ASRA': SatcatOwner(
+    code: 'ASRA',
     name: 'Austria',
     region: _europe,
     isEuSovereign: true,
@@ -113,6 +126,18 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
   'BEL': SatcatOwner(
     code: 'BEL',
     name: 'Belgium',
+    region: _europe,
+    isEuSovereign: true,
+  ),
+  'BUL': SatcatOwner(
+    code: 'BUL',
+    name: 'Bulgaria',
+    region: _europe,
+    isEuSovereign: true,
+  ),
+  'HRV': SatcatOwner(
+    code: 'HRV',
+    name: 'Croatia',
     region: _europe,
     isEuSovereign: true,
   ),
@@ -125,6 +150,12 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
   'DEN': SatcatOwner(
     code: 'DEN',
     name: 'Denmark',
+    region: _europe,
+    isEuSovereign: true,
+  ),
+  'EST': SatcatOwner(
+    code: 'EST',
+    name: 'Estonia',
     region: _europe,
     isEuSovereign: true,
   ),
@@ -158,9 +189,21 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
     region: _europe,
     isEuSovereign: true,
   ),
+  'IRL': SatcatOwner(
+    code: 'IRL',
+    name: 'Ireland',
+    region: _europe,
+    isEuSovereign: true,
+  ),
   'IT': SatcatOwner(
     code: 'IT',
     name: 'Italy',
+    region: _europe,
+    isEuSovereign: true,
+  ),
+  'LTU': SatcatOwner(
+    code: 'LTU',
+    name: 'Lithuania',
     region: _europe,
     isEuSovereign: true,
   ),
@@ -185,6 +228,18 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
   'POR': SatcatOwner(
     code: 'POR',
     name: 'Portugal',
+    region: _europe,
+    isEuSovereign: true,
+  ),
+  'ROM': SatcatOwner(
+    code: 'ROM',
+    name: 'Romania',
+    region: _europe,
+    isEuSovereign: true,
+  ),
+  'SVN': SatcatOwner(
+    code: 'SVN',
+    name: 'Slovenia',
     region: _europe,
     isEuSovereign: true,
   ),
@@ -217,8 +272,36 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
     name: 'Switzerland',
     region: _europe,
   ),
-
-  // -- Eurasia (NOT EU-sovereign) --------------------------------------------
+  'UKR': SatcatOwner(
+    code: 'UKR',
+    name: 'Ukraine',
+    region: _europe,
+  ),
+  'BELA': SatcatOwner(
+    code: 'BELA',
+    name: 'Belarus',
+    region: _europe,
+  ),
+  'MDA': SatcatOwner(
+    code: 'MDA',
+    name: 'Moldova',
+    region: _europe,
+  ),
+  'MNE': SatcatOwner(
+    code: 'MNE',
+    name: 'Montenegro',
+    region: _europe,
+  ),
+  'MCO': SatcatOwner(
+    code: 'MCO',
+    name: 'Monaco',
+    region: _europe,
+  ),
+  'VAT': SatcatOwner(
+    code: 'VAT',
+    name: 'Vatican City',
+    region: _europe,
+  ),
   // CIS is the standard CelesTrak owner code for the former-USSR / Russia
   // bloc. Region is reported as Europe because the CIS space programme and its
   // primary owning state (Russia) are centred on European Russia; this is a
@@ -231,6 +314,9 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
   ),
 
   // -- Asia (NOT EU-sovereign) -----------------------------------------------
+  // Trans-continental owners whose landmass is mostly in Asia are filed here
+  // (Armenia, Azerbaijan, Kazakhstan, Turkey), matching the UN Western/Central
+  // Asia geoscheme.
   'PRC': SatcatOwner(
     code: 'PRC',
     name: 'China',
@@ -246,9 +332,19 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
     name: 'India',
     region: _asia,
   ),
+  'ISRO': SatcatOwner(
+    code: 'ISRO',
+    name: 'Indian Space Research Organisation',
+    region: _asia,
+  ),
   'SKOR': SatcatOwner(
     code: 'SKOR',
     name: 'Republic of Korea',
+    region: _asia,
+  ),
+  'NKOR': SatcatOwner(
+    code: 'NKOR',
+    name: 'North Korea',
     region: _asia,
   ),
   'ISRA': SatcatOwner(
@@ -256,10 +352,217 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
     name: 'Israel',
     region: _asia,
   ),
-  'TWN': SatcatOwner(
-    code: 'TWN',
+  'ROC': SatcatOwner(
+    code: 'ROC',
     name: 'Taiwan',
     region: _asia,
+  ),
+  'INDO': SatcatOwner(
+    code: 'INDO',
+    name: 'Indonesia',
+    region: _asia,
+  ),
+  'RP': SatcatOwner(
+    code: 'RP',
+    name: 'Philippines',
+    region: _asia,
+  ),
+  'MALA': SatcatOwner(
+    code: 'MALA',
+    name: 'Malaysia',
+    region: _asia,
+  ),
+  'SING': SatcatOwner(
+    code: 'SING',
+    name: 'Singapore',
+    region: _asia,
+  ),
+  'THAI': SatcatOwner(
+    code: 'THAI',
+    name: 'Thailand',
+    region: _asia,
+  ),
+  'VTNM': SatcatOwner(
+    code: 'VTNM',
+    name: 'Vietnam',
+    region: _asia,
+  ),
+  'PAKI': SatcatOwner(
+    code: 'PAKI',
+    name: 'Pakistan',
+    region: _asia,
+  ),
+  'BGD': SatcatOwner(
+    code: 'BGD',
+    name: 'Bangladesh',
+    region: _asia,
+  ),
+  'LKA': SatcatOwner(
+    code: 'LKA',
+    name: 'Sri Lanka',
+    region: _asia,
+  ),
+  'NPL': SatcatOwner(
+    code: 'NPL',
+    name: 'Nepal',
+    region: _asia,
+  ),
+  'BHUT': SatcatOwner(
+    code: 'BHUT',
+    name: 'Bhutan',
+    region: _asia,
+  ),
+  'MMR': SatcatOwner(
+    code: 'MMR',
+    name: 'Myanmar',
+    region: _asia,
+  ),
+  'LAOS': SatcatOwner(
+    code: 'LAOS',
+    name: 'Laos',
+    region: _asia,
+  ),
+  'MNG': SatcatOwner(
+    code: 'MNG',
+    name: 'Mongolia',
+    region: _asia,
+  ),
+  'KAZ': SatcatOwner(
+    code: 'KAZ',
+    name: 'Kazakhstan',
+    region: _asia,
+  ),
+  'ARM': SatcatOwner(
+    code: 'ARM',
+    name: 'Armenia',
+    region: _asia,
+  ),
+  'AZER': SatcatOwner(
+    code: 'AZER',
+    name: 'Azerbaijan',
+    region: _asia,
+  ),
+  'IRAN': SatcatOwner(
+    code: 'IRAN',
+    name: 'Iran',
+    region: _asia,
+  ),
+  'IRAQ': SatcatOwner(
+    code: 'IRAQ',
+    name: 'Iraq',
+    region: _asia,
+  ),
+  'SAUD': SatcatOwner(
+    code: 'SAUD',
+    name: 'Saudi Arabia',
+    region: _asia,
+  ),
+  'UAE': SatcatOwner(
+    code: 'UAE',
+    name: 'United Arab Emirates',
+    region: _asia,
+  ),
+  'QAT': SatcatOwner(
+    code: 'QAT',
+    name: 'Qatar',
+    region: _asia,
+  ),
+  'BHR': SatcatOwner(
+    code: 'BHR',
+    name: 'Bahrain',
+    region: _asia,
+  ),
+  'TURK': SatcatOwner(
+    code: 'TURK',
+    name: 'Turkey',
+    region: _asia,
+  ),
+
+  // -- Africa (NOT EU-sovereign) ---------------------------------------------
+  'SAFR': SatcatOwner(
+    code: 'SAFR',
+    name: 'South Africa',
+    region: _africa,
+  ),
+  'EGYP': SatcatOwner(
+    code: 'EGYP',
+    name: 'Egypt',
+    region: _africa,
+  ),
+  'ALG': SatcatOwner(
+    code: 'ALG',
+    name: 'Algeria',
+    region: _africa,
+  ),
+  'MA': SatcatOwner(
+    code: 'MA',
+    name: 'Morocco',
+    region: _africa,
+  ),
+  'TUN': SatcatOwner(
+    code: 'TUN',
+    name: 'Tunisia',
+    region: _africa,
+  ),
+  'SDN': SatcatOwner(
+    code: 'SDN',
+    name: 'Sudan',
+    region: _africa,
+  ),
+  'NIG': SatcatOwner(
+    code: 'NIG',
+    name: 'Nigeria',
+    region: _africa,
+  ),
+  'GHA': SatcatOwner(
+    code: 'GHA',
+    name: 'Ghana',
+    region: _africa,
+  ),
+  'KEN': SatcatOwner(
+    code: 'KEN',
+    name: 'Kenya',
+    region: _africa,
+  ),
+  'ETH': SatcatOwner(
+    code: 'ETH',
+    name: 'Ethiopia',
+    region: _africa,
+  ),
+  'ANG': SatcatOwner(
+    code: 'ANG',
+    name: 'Angola',
+    region: _africa,
+  ),
+  'BWA': SatcatOwner(
+    code: 'BWA',
+    name: 'Botswana',
+    region: _africa,
+  ),
+  'ZWE': SatcatOwner(
+    code: 'ZWE',
+    name: 'Zimbabwe',
+    region: _africa,
+  ),
+  'RWA': SatcatOwner(
+    code: 'RWA',
+    name: 'Rwanda',
+    region: _africa,
+  ),
+  'MUS': SatcatOwner(
+    code: 'MUS',
+    name: 'Mauritius',
+    region: _africa,
+  ),
+  'DJI': SatcatOwner(
+    code: 'DJI',
+    name: 'Djibouti',
+    region: _africa,
+  ),
+  'SEN': SatcatOwner(
+    code: 'SEN',
+    name: 'Senegal',
+    region: _africa,
   ),
 
   // -- North America (NOT EU-sovereign) --------------------------------------
@@ -271,6 +574,28 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
   'CA': SatcatOwner(
     code: 'CA',
     name: 'Canada',
+    region: _northAmerica,
+  ),
+  'MEX': SatcatOwner(
+    code: 'MEX',
+    name: 'Mexico',
+    region: _northAmerica,
+  ),
+  'GUAT': SatcatOwner(
+    code: 'GUAT',
+    name: 'Guatemala',
+    region: _northAmerica,
+  ),
+  'CRI': SatcatOwner(
+    code: 'CRI',
+    name: 'Costa Rica',
+    region: _northAmerica,
+  ),
+  // Bermuda is a North Atlantic territory conventionally grouped with North
+  // America.
+  'BERM': SatcatOwner(
+    code: 'BERM',
+    name: 'Bermuda',
     region: _northAmerica,
   ),
 
@@ -285,23 +610,61 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
     name: 'Argentina',
     region: _southAmerica,
   ),
-
-  // -- Africa (NOT EU-sovereign) ---------------------------------------------
-  'RSA': SatcatOwner(
-    code: 'RSA',
-    name: 'South Africa',
-    region: _africa,
+  'CHLE': SatcatOwner(
+    code: 'CHLE',
+    name: 'Chile',
+    region: _southAmerica,
   ),
-  'EGYP': SatcatOwner(
-    code: 'EGYP',
-    name: 'Egypt',
-    region: _africa,
+  'COL': SatcatOwner(
+    code: 'COL',
+    name: 'Colombia',
+    region: _southAmerica,
+  ),
+  'VENZ': SatcatOwner(
+    code: 'VENZ',
+    name: 'Venezuela',
+    region: _southAmerica,
+  ),
+  'PERU': SatcatOwner(
+    code: 'PERU',
+    name: 'Peru',
+    region: _southAmerica,
+  ),
+  'ECU': SatcatOwner(
+    code: 'ECU',
+    name: 'Ecuador',
+    region: _southAmerica,
+  ),
+  'BOL': SatcatOwner(
+    code: 'BOL',
+    name: 'Bolivia',
+    region: _southAmerica,
+  ),
+  'PRY': SatcatOwner(
+    code: 'PRY',
+    name: 'Paraguay',
+    region: _southAmerica,
+  ),
+  'URY': SatcatOwner(
+    code: 'URY',
+    name: 'Uruguay',
+    region: _southAmerica,
   ),
 
   // -- Oceania (NOT EU-sovereign) --------------------------------------------
-  'AUST': SatcatOwner(
-    code: 'AUST',
+  'AUS': SatcatOwner(
+    code: 'AUS',
     name: 'Australia',
+    region: _oceania,
+  ),
+  'NZ': SatcatOwner(
+    code: 'NZ',
+    name: 'New Zealand',
+    region: _oceania,
+  ),
+  'SLB': SatcatOwner(
+    code: 'SLB',
+    name: 'Solomon Islands',
     region: _oceania,
   ),
 
@@ -349,6 +712,81 @@ const Map<String, SatcatOwner> kSatcatOwnerCodes = <String, SatcatOwner>{
   'ORB': SatcatOwner(
     code: 'ORB',
     name: 'ORBCOMM',
+    region: _multinational,
+  ),
+  'IRID': SatcatOwner(
+    code: 'IRID',
+    name: 'Iridium',
+    region: _multinational,
+  ),
+  'NICO': SatcatOwner(
+    code: 'NICO',
+    name: 'New ICO',
+    region: _multinational,
+  ),
+  'ABS': SatcatOwner(
+    code: 'ABS',
+    name: 'Asia Broadcast Satellite',
+    region: _multinational,
+  ),
+  'AC': SatcatOwner(
+    code: 'AC',
+    name: 'Asia Satellite Telecommunications Company (AsiaSat)',
+    region: _multinational,
+  ),
+  'RASC': SatcatOwner(
+    code: 'RASC',
+    name: 'RascomStar-QAF',
+    region: _multinational,
+  ),
+  'SEAL': SatcatOwner(
+    code: 'SEAL',
+    name: 'Sea Launch',
+    region: _multinational,
+  ),
+
+  // -- Multinational joint owners (mixed participants, NOT EU-sovereign) ------
+  // Bilateral codes with at least one non-EU participant: filed Multinational
+  // and never EU-sovereign (contrast FGER/FRIT above, whose participants are
+  // all EU members).
+  'CHBZ': SatcatOwner(
+    code: 'CHBZ',
+    name: 'China/Brazil',
+    region: _multinational,
+  ),
+  'CHTU': SatcatOwner(
+    code: 'CHTU',
+    name: 'China/Turkey',
+    region: _multinational,
+  ),
+  'GRSA': SatcatOwner(
+    code: 'GRSA',
+    name: 'Greece/Saudi Arabia',
+    region: _multinational,
+  ),
+  'PRES': SatcatOwner(
+    code: 'PRES',
+    name: 'China/European Space Agency',
+    region: _multinational,
+  ),
+  'SGJP': SatcatOwner(
+    code: 'SGJP',
+    name: 'Singapore/Japan',
+    region: _multinational,
+  ),
+  'STCT': SatcatOwner(
+    code: 'STCT',
+    name: 'Singapore/Taiwan',
+    region: _multinational,
+  ),
+  'TMMC': SatcatOwner(
+    code: 'TMMC',
+    name: 'Turkmenistan/Monaco',
+    region: _multinational,
+  ),
+  'USBZ': SatcatOwner(
+    code: 'USBZ',
+    name: 'United States/Brazil',
     region: _multinational,
   ),
 };
