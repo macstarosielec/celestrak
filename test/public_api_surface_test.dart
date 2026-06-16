@@ -6,7 +6,7 @@
 /// accidentally widened or narrowed, it fails immediately.
 ///
 /// Symbols confirmed public (one assignment proves the name resolves):
-///   CelestrakClient, SpaceTrackClient, SpaceTrackQuery,
+///   CelestrakClient, SatcatClient, SpaceTrackClient, SpaceTrackQuery,
 ///   CacheStore, MemoryCacheStore, OmmParser, ParseBenchmarkHook,
 ///   NullParseBenchmarkHook, Clock, SystemClock, kDefaultTtl,
 ///   kSatcatDefaultTtl, kSatcatStaleThreshold,
@@ -34,6 +34,11 @@ void main() {
     test('CelestrakClient is accessible', () {
       // Construction requires real deps; just check the type resolves.
       expect(CelestrakClient, isNotNull);
+    });
+
+    test('SatcatClient is accessible', () {
+      // Construction requires real deps; just check the type resolves.
+      expect(SatcatClient, isNotNull);
     });
 
     test('SpaceTrackClient is accessible', () {
