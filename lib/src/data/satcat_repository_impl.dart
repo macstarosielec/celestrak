@@ -219,8 +219,7 @@ final class SatcatRepositoryImpl implements SatcatRepository {
   }
 
   @override
-  Future<void> clearCache({String? keyPrefix}) =>
-      _cacheStore.clear(
+  Future<void> clearCache({String? keyPrefix}) => _cacheStore.clear(
         keyPrefix: keyPrefix ?? CacheKeyBuilder.satcatDatasetPrefix,
       );
 
