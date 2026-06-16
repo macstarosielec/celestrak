@@ -70,7 +70,7 @@ void main() {
         loadFixture('satcat_unknown_owner.json'),
       );
       expect(entry.ownerCode, 'ZZZ');
-      expect(entry.owner.name, entry.ownerCode);
+      expect(entry.owner.name, 'ZZZ');
       expect(entry.owner.region, isNull);
       expect(entry.owner.isEuSovereign, isFalse);
     });

@@ -84,7 +84,7 @@ void main() {
 
     test('parses 6+ digit NORAD catalog numbers', () {
       final entry = parser.parseJson(_loadJson('satcat_6digit.json'));
-      expect(entry.noradId, greaterThanOrEqualTo(100000));
+      expect(entry.noradId, 270544);
     });
 
     test('a decayed object is not on-orbit', () {
