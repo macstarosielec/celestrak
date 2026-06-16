@@ -248,6 +248,66 @@ void main() {
         },
         tags: 'integration',
       );
+
+      // fetchSatcatByQuery - happy path
+
+      test(
+        'fetchSatcatByQuery returns ISS (NORAD 25544) SATCAT metadata',
+        () async {
+          final client = _liveClient()!;
+          try {
+            final entry = await client.fetchSatcatByQuery(
+              SpaceTrackQuery.byNoradId(_issNoradId),
+            );
+            expect(
+              entry.noradId,
+              equals(_issNoradId),
+              reason: 'noradId must match the queried catalog number',
+            );
+            expect(
+              entry.name,
+              isNotEmpty,
+              reason: 'name must be non-empty for a known object',
+            );
+            expect(
+              entry.objectType,
+              equals(SatcatObjectType.payload),
+              reason: 'ISS is a payload',
+            );
+            expect(
+              entry.isOnOrbit,
+              isTrue,
+              reason: 'ISS has not decayed',
+            );
+          } finally {
+            client.dispose();
+          }
+        },
+        timeout: const Timeout(_timeout),
+        tags: 'integration',
+      );
+
+      test(
+        'fetchSatcatByQuery throws StateError when credentials are absent',
+        () async {
+          final disabled = SpaceTrackClient.withClient(
+            client: http.Client(),
+            identity: null,
+            password: null,
+          );
+          try {
+            await expectLater(
+              () => disabled.fetchSatcatByQuery(
+                SpaceTrackQuery.byNoradId(_issNoradId),
+              ),
+              throwsStateError,
+            );
+          } finally {
+            disabled.dispose();
+          }
+        },
+        tags: 'integration',
+      );
     },
     // Space-Track may occasionally be slow; allow one automatic retry per test
     // to reduce false negatives from transient network errors.

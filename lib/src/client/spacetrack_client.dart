@@ -3,6 +3,11 @@
 /// Wraps `SpaceTrackDataSource` with login management, JSON→`SatelliteTle`
 /// parsing, and `TleSource.spacetrack` provenance stamping.
 ///
+/// Optional SATCAT metadata is also available via `fetchSatcatByQuery`,
+/// which returns a `SatcatEntry` from Space-Track's `satcat` class. It shares
+/// the same credential gating, login, and throttle as the GP path and is
+/// independent of the core CelesTrak SATCAT flow.
+///
 /// ## Authentication
 ///
 /// Space-Track requires a registered account. Supply your credentials via
@@ -52,10 +57,12 @@ import 'dart:convert' show jsonDecode;
 
 import 'package:celestrak/src/client/spacetrack_query.dart';
 import 'package:celestrak/src/data/parsers/omm_parser.dart';
+import 'package:celestrak/src/data/parsers/satcat_parser.dart';
 import 'package:celestrak/src/data/remote/spacetrack_data_source.dart';
 import 'package:celestrak/src/domain/clock.dart';
 import 'package:celestrak/src/domain/enums.dart';
 import 'package:celestrak/src/domain/failures.dart';
+import 'package:celestrak/src/domain/satcat_entry.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
 import 'package:http/http.dart' as http;
 
@@ -65,6 +72,10 @@ import 'package:http/http.dart' as http;
 /// provenance stamping for every result. The underlying HTTP client is either
 /// owned (created internally) or caller-supplied via
 /// [SpaceTrackClient.withClient].
+///
+/// In addition to GP data via [fetchByQuery], the optional SATCAT metadata
+/// path is available via [fetchSatcatByQuery], returning a [SatcatEntry]. Both
+/// paths share the same credential gating, auto-login, and throttle.
 ///
 /// ## Credential gating
 ///
@@ -202,6 +213,7 @@ final class SpaceTrackClient {
   bool _disposed = false;
 
   static const _ommParser = OmmParser();
+  static const _satcatParser = SatcatParser();
 
   /// `true` when credentials were supplied and the source is usable.
   ///
@@ -329,6 +341,174 @@ final class SpaceTrackClient {
       source: TleSource.spacetrack,
       omm: omm,
     );
+  }
+
+  /// Fetches SATCAT metadata for the satellite described by [query].
+  ///
+  /// This is the optional Space-Track SATCAT path. It is independent of the
+  /// core CelesTrak SATCAT flow and shares the GP path's login, throttle, and
+  /// HTTP transport seam.
+  ///
+  /// Logs in automatically on the first call (shared session with
+  /// [fetchByQuery]). The request is throttled by the same
+  /// `minRequestInterval` as the GP path. The query is filtered to the single
+  /// current SATCAT record for the object (Space-Track keeps historical rows).
+  ///
+  /// Returns a [SatcatEntry] sourced from Space-Track's `satcat` class. SATCAT
+  /// is metadata-only (owner, launch, decay, object type, size); it carries no
+  /// orbital elements and performs no orbital math. Join it with GP data on
+  /// [SatcatEntry.noradId] when both are needed.
+  ///
+  /// Throws [StateError] when [dispose] has already been called.
+  ///
+  /// Throws [StateError] when [isEnabled] is `false` (no credentials were
+  /// supplied at construction time).
+  ///
+  /// Throws [AuthenticationException] on HTTP 401 or 403.
+  ///
+  /// Throws [RateLimitException] on HTTP 429.
+  ///
+  /// Throws [NetworkException] on transport failures.
+  ///
+  /// Throws [SatelliteNotFoundException] when the Space-Track response is an
+  /// empty array (no SATCAT record for the requested NORAD catalog number).
+  ///
+  /// Throws [SatcatParseException] when the response body is malformed (not a
+  /// JSON array, or the record cannot be mapped to a [SatcatEntry]).
+  Future<SatcatEntry> fetchSatcatByQuery(SpaceTrackQuery query) async {
+    if (_disposed) {
+      throw StateError('SpaceTrackClient has been disposed');
+    }
+    final source = _dataSource;
+    if (source == null) {
+      throw StateError(
+        'SpaceTrackClient is disabled: no credentials were supplied. '
+        'Provide a non-empty identity and password to enable Space-Track '
+        'access, or check isEnabled before calling fetchSatcatByQuery.',
+      );
+    }
+    if (!source.isLoggedIn) {
+      await source.login();
+    }
+
+    final body = await source.fetchSatcatByNoradId(query.noradId);
+    return _parseSatcatBody(body, query.noradId);
+  }
+
+  /// Parses the Space-Track `satcat` JSON response body into a [SatcatEntry].
+  ///
+  /// Space-Track returns a JSON array of SATCAT objects. An empty array means
+  /// no record exists, which maps to [SatelliteNotFoundException]. With the
+  /// `CURRENT/Y` predicate the array holds at most one (the current) record,
+  /// so the first element is used.
+  ///
+  /// Space-Track's `satcat` class uses different field names than CelesTrak's
+  /// SATCAT. This helper normalizes the Space-Track keys to the CelesTrak keys
+  /// that [SatcatEntry.fromCelestrakJson] reads, then delegates to
+  /// [SatcatParser.parseJson]. Only keys present in the source record are
+  /// copied; nulls are preserved verbatim. The mapping is:
+  ///
+  /// | Space-Track key      | CelesTrak key   |
+  /// |----------------------|-----------------|
+  /// | NORAD_CAT_ID         | NORAD_CAT_ID    |
+  /// | OBJECT_NAME / SATNAME| OBJECT_NAME     |
+  /// | OBJECT_ID / INTLDES  | OBJECT_ID       |
+  /// | OBJECT_TYPE          | OBJECT_TYPE     |
+  /// | COUNTRY              | OWNER           |
+  /// | LAUNCH               | LAUNCH_DATE     |
+  /// | SITE                 | LAUNCH_SITE     |
+  /// | DECAY                | DECAY_DATE      |
+  /// | PERIOD               | PERIOD          |
+  /// | INCLINATION          | INCLINATION     |
+  /// | APOGEE               | APOGEE          |
+  /// | PERIGEE              | PERIGEE         |
+  /// | RCSVALUE             | RCS             |
+  ///
+  /// Space-Track's `satcat` has no operational-status field, so
+  /// OPS_STATUS_CODE is left unset and parses to `null`. Fallback keys
+  /// (SATNAME for OBJECT_NAME, INTLDES for OBJECT_ID) are used only when the
+  /// primary key is absent.
+  ///
+  /// Throws [SatelliteNotFoundException] on an empty array.
+  ///
+  /// Throws [SatcatParseException] when the body is not a JSON array or the
+  /// record fails to map to a [SatcatEntry].
+  SatcatEntry _parseSatcatBody(String body, int noradId) {
+    late final dynamic decoded;
+    try {
+      decoded = jsonDecode(body);
+    } on FormatException catch (e) {
+      throw SatcatParseException(
+        'Space-Track returned an unparseable SATCAT response for NORAD ID '
+        '$noradId: ${e.message}',
+      );
+    }
+    if (decoded is! List<dynamic>) {
+      throw SatcatParseException(
+        'Space-Track returned an unexpected SATCAT response format for NORAD '
+        'ID $noradId (expected a JSON array, got ${decoded.runtimeType})',
+      );
+    }
+
+    if (decoded.isEmpty) {
+      throw SatelliteNotFoundException(
+        'Space-Track returned no SATCAT record for NORAD ID $noradId',
+        noradId: noradId,
+      );
+    }
+
+    // The CURRENT/Y predicate restricts the response to the single current
+    // record, so the first element is the one to use. Guard the element type
+    // explicitly so a stray non-object array element surfaces as a
+    // SatcatParseException rather than an unhandled cast error.
+    final stRecord = decoded.first;
+    if (stRecord is! Map<String, dynamic>) {
+      throw SatcatParseException(
+        'Space-Track returned an unexpected SATCAT record for NORAD ID '
+        '$noradId (expected a JSON object, got ${stRecord.runtimeType})',
+      );
+    }
+
+    return _satcatParser.parseJson(_normalizeSatcatRecord(stRecord));
+  }
+
+  /// Normalizes a Space-Track `satcat` record to CelesTrak SATCAT field names.
+  ///
+  /// See [_parseSatcatBody] for the full field mapping. Only keys present in
+  /// [stRecord] are copied; nulls are preserved.
+  Map<String, dynamic> _normalizeSatcatRecord(Map<String, dynamic> stRecord) {
+    final out = <String, dynamic>{};
+
+    void copy(String stKey, String ctKey) {
+      if (stRecord.containsKey(stKey)) {
+        out[ctKey] = stRecord[stKey];
+      }
+    }
+
+    void copyFirst(List<String> stKeys, String ctKey) {
+      for (final stKey in stKeys) {
+        if (stRecord.containsKey(stKey)) {
+          out[ctKey] = stRecord[stKey];
+          return;
+        }
+      }
+    }
+
+    copy('NORAD_CAT_ID', 'NORAD_CAT_ID');
+    copyFirst(['OBJECT_NAME', 'SATNAME'], 'OBJECT_NAME');
+    copyFirst(['OBJECT_ID', 'INTLDES'], 'OBJECT_ID');
+    copy('OBJECT_TYPE', 'OBJECT_TYPE');
+    copy('COUNTRY', 'OWNER');
+    copy('LAUNCH', 'LAUNCH_DATE');
+    copy('SITE', 'LAUNCH_SITE');
+    copy('DECAY', 'DECAY_DATE');
+    copy('PERIOD', 'PERIOD');
+    copy('INCLINATION', 'INCLINATION');
+    copy('APOGEE', 'APOGEE');
+    copy('PERIGEE', 'PERIGEE');
+    copy('RCSVALUE', 'RCS');
+
+    return out;
   }
 
   /// Releases the internal `http.Client` if this instance owns it.

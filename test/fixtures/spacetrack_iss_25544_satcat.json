@@ -1,0 +1,28 @@
+[
+  {
+    "INTLDES": "1998-067A",
+    "NORAD_CAT_ID": "25544",
+    "OBJECT_TYPE": "PAYLOAD",
+    "SATNAME": "ISS (ZARYA)",
+    "COUNTRY": "ISS",
+    "LAUNCH": "1998-11-20",
+    "SITE": "TTMTR",
+    "DECAY": null,
+    "PERIOD": "92.94",
+    "INCLINATION": "51.64",
+    "APOGEE": "420",
+    "PERIGEE": "418",
+    "COMMENT": null,
+    "COMMENTCODE": null,
+    "RCSVALUE": "0.0",
+    "RCS_SIZE": "LARGE",
+    "FILE": "3574123",
+    "LAUNCH_YEAR": "1998",
+    "LAUNCH_NUM": "67",
+    "LAUNCH_PIECE": "A",
+    "CURRENT": "Y",
+    "OBJECT_NAME": "ISS (ZARYA)",
+    "OBJECT_ID": "1998-067A",
+    "OBJECT_NUMBER": "25544"
+  }
+]
