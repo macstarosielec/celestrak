@@ -47,6 +47,29 @@ final class CacheKeyBuilder {
   static const _fmtPrefix = 'fmt:';
   static const _srcPrefix = 'src:';
 
+  /// Leading segment that namespaces a key to the SATCAT dataset.
+  ///
+  /// GP keys begin with a query-type segment (`norad:`, `name:`, `group:`,
+  /// `intdes:`); SATCAT keys begin with this `dataset:satcat~` prefix instead,
+  /// so a SATCAT key can never collide with a GP key for the same query value.
+  ///
+  /// Exposed (without an underscore) as the canonical SATCAT namespace prefix
+  /// so callers that scope a cache sweep to SATCAT - e.g.
+  /// `SatcatRepositoryImpl.clearCache` - share this single source of truth
+  /// rather than re-hardcoding the string.
+  ///
+  /// Unlike GP keys, SATCAT keys carry no `src:` segment: SATCAT is sourced
+  /// only from CelesTrak today. Adding a second SATCAT source later would
+  /// require a source discriminator here to avoid cross-source collisions.
+  static const satcatDatasetPrefix = 'dataset:satcat';
+
+  /// Wire-format segment for SATCAT keys.
+  ///
+  /// SATCAT is always fetched and cached as JSON, so the format is fixed; the
+  /// segment is included for forward-compatibility (parity with the GP `fmt:`
+  /// segment) should another SATCAT wire format ever be cached.
+  static const _satcatJsonFmt = 'fmt:json';
+
   // ── Public factories ──────────────────────────────────────────────────────
 
   /// Builds a key for a NORAD-catalog-ID query.
@@ -118,7 +141,62 @@ final class CacheKeyBuilder {
   }) =>
       _build('intdes:${_normalise(intlDes)}', format, source);
 
+  // SATCAT factories.
+  //
+  // SATCAT keys are dataset-discriminated: every key begins with the
+  // `dataset:satcat~` prefix and ends with the fixed `fmt:json` segment, so
+  // they occupy a separate namespace from GP keys and never collide with them.
+  // There is no `src:` segment - SATCAT has a single source (CelesTrak).
+
+  /// Builds a SATCAT cache key for a NORAD-catalog-ID lookup.
+  ///
+  /// Produces `dataset:satcat~norad:<id>~fmt:json`.
+  ///
+  /// [noradId] must be positive (rejected otherwise, mirroring [forNoradId]).
+  static String forSatcatNoradId(int noradId) {
+    if (noradId <= 0) {
+      throw ArgumentError.value(
+        noradId,
+        'noradId',
+        'must be positive',
+      );
+    }
+    return _buildSatcat('norad:$noradId');
+  }
+
+  /// Builds a SATCAT cache key for a group query.
+  ///
+  /// Produces `dataset:satcat~group:<normalised>~fmt:json`. [group] is
+  /// normalised identically to the GP group factories (lower-cased, spaces to
+  /// `_`, disallowed characters stripped).
+  static String forSatcatGroup(String group) =>
+      _buildSatcat('group:${_normalise(group)}');
+
+  /// Builds a SATCAT cache key for an international-designator query.
+  ///
+  /// Produces `dataset:satcat~intdes:<normalised>~fmt:json`. [intlDes] is
+  /// normalised (lower-cased, hyphens preserved).
+  static String forSatcatIntlDesignator(String intlDes) =>
+      _buildSatcat('intdes:${_normalise(intlDes)}');
+
+  /// Builds the SATCAT cache key for the full active-catalogue query.
+  ///
+  /// Produces `dataset:satcat~group:active~fmt:json`. CelesTrak's
+  /// full-catalogue SATCAT form is `GROUP=active` (`kSatcatFullCatalogGroup`),
+  /// so this key is deliberately identical to `forSatcatGroup('active')`: a
+  /// `fetchAll` and a `fetchByGroup('active')` issue the same underlying
+  /// request and therefore legitimately share a single cache entry.
+  static String forSatcatAll() => _buildSatcat('group:active');
+
   // ── Internal helpers ──────────────────────────────────────────────────────
+
+  static String _buildSatcat(String querySegment) {
+    final key = '$satcatDatasetPrefix'
+        '$_sep$querySegment'
+        '$_sep$_satcatJsonFmt';
+    _assertValid(key);
+    return key;
+  }
 
   static String _build(
     String querySegment,

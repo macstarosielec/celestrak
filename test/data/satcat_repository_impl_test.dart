@@ -1,3 +1,10 @@
+/// SATCAT repository fetch/parse behaviour over a mock data source.
+///
+/// Covers the repository's delegation to [SatcatDataSource] and the parsed
+/// results it returns; the dataset-discriminated cache layer (TTL, staleness,
+/// forceCache, allowStale) is exercised in `satcat_repository_impl_cache_test`.
+library;
+
 import 'dart:io' show File;
 
 import 'package:celestrak/celestrak.dart';
@@ -7,6 +14,8 @@ import 'package:celestrak/src/network/http_transport.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
+
+import '../support/fake_clock.dart';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -21,10 +30,13 @@ late String _groupStations;
 
 const _testBase = 'https://celestrak.test/satcat/records.php';
 
-/// Creates a [SatcatRepositoryImpl] wired to a [MockClient] data source.
+/// Creates a [SatcatRepositoryImpl] wired to a [MockClient] data source and a
+/// fresh [MemoryCacheStore] with an optional [FakeClock].
 SatcatRepositoryImpl _repo(
   MockClientHandler handler, {
   int maxAttempts = 1,
+  FakeClock? clock,
+  MemoryCacheStore? store,
 }) =>
     SatcatRepositoryImpl(
       dataSource: SatcatDataSource(
@@ -35,6 +47,8 @@ SatcatRepositoryImpl _repo(
         ),
         baseUrl: _testBase,
       ),
+      cacheStore: store ?? MemoryCacheStore(),
+      clock: clock ?? FakeClock(DateTime.utc(2026, 6, 1, 14)),
     );
 
 void main() {
