@@ -39,7 +39,7 @@ time by passing a shorter `Duration` (e.g. `staleThreshold: const Duration(days:
 
 ```yaml
 dependencies:
-  celestrak: ^1.0.0
+  celestrak: ^1.1.0
 ```
 
 ### 2. Fetch by NORAD ID (ISS = 25544)
