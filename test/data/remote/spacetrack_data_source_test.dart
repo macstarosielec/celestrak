@@ -397,6 +397,146 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
+  // fetchSatcatByNoradId()
+  // -------------------------------------------------------------------------
+
+  group('SpaceTrackDataSource.fetchSatcatByNoradId()', () {
+    test('builds correct SATCAT query URI for NORAD ID 25544', () async {
+      Uri? capturedUri;
+
+      final src = _source((request) async {
+        capturedUri = request.url;
+        return http.Response('[]', 200);
+      });
+
+      try {
+        await src.fetchSatcatByNoradId(25544);
+      } on SatelliteNotFoundException {
+        // The URI is captured before the empty-array body is parsed; the
+        // not-found exception is irrelevant to the URI assertion below. The
+        // data source itself returns the raw body, so this catch is defensive.
+      }
+
+      expect(
+        capturedUri?.path,
+        '/basicspacedata/query/class/satcat/NORAD_CAT_ID/25544'
+        '/CURRENT/Y/format/json',
+      );
+    });
+
+    test('SATCAT query URL contains no credentials', () async {
+      Uri? capturedUri;
+
+      final src = _source((request) async {
+        capturedUri = request.url;
+        // At the data-source layer fetchSatcatByNoradId returns the raw body;
+        // an empty array is a valid 200 response and is not parsed here.
+        return http.Response('[]', 200);
+      });
+
+      await src.fetchSatcatByNoradId(25544);
+
+      final urlString = capturedUri.toString();
+      expect(urlString, isNot(contains('identity')));
+      expect(urlString, isNot(contains('password')));
+      expect(urlString, isNot(contains('user@example.com')));
+      expect(urlString, isNot(contains('test-password')));
+    });
+
+    test('returns the response body on HTTP 200', () async {
+      const body = '[{"NORAD_CAT_ID":"25544"}]';
+      final src = _source((_) async => http.Response(body, 200));
+
+      final result = await src.fetchSatcatByNoradId(25544);
+
+      expect(result, equals(body));
+    });
+
+    test('throws ArgumentError when noradId < 1', () async {
+      final src = _source((_) async => http.Response('[]', 200));
+
+      await expectLater(
+        src.fetchSatcatByNoradId(0),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('throws ArgumentError when noradId is negative', () async {
+      final src = _source((_) async => http.Response('[]', 200));
+
+      await expectLater(
+        src.fetchSatcatByNoradId(-1),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('throws AuthenticationException on HTTP 401', () async {
+      final src = _source((_) async => http.Response('Unauthorized', 401));
+
+      final ex = await _catchAuth(() => src.fetchSatcatByNoradId(25544));
+
+      expect(ex.statusCode, 401);
+      expect(ex.uri?.path, contains('/class/satcat/NORAD_CAT_ID/25544'));
+    });
+
+    test('throws AuthenticationException on HTTP 403', () async {
+      final src = _source((_) async => http.Response('Forbidden', 403));
+
+      final ex = await _catchAuth(() => src.fetchSatcatByNoradId(25544));
+
+      expect(ex.statusCode, 403);
+      expect(ex.uri?.path, contains('/class/satcat/NORAD_CAT_ID/25544'));
+    });
+
+    test('throws RateLimitException on HTTP 429', () async {
+      final src = _source((_) async => http.Response('Too Many', 429));
+
+      final ex = await _catchRateLimit(() => src.fetchSatcatByNoradId(25544));
+
+      expect(ex.uri?.path, contains('/class/satcat/NORAD_CAT_ID/25544'));
+    });
+
+    test('throws NetworkException on HTTP 500', () async {
+      final src = _source((_) async => http.Response('Server Error', 500));
+
+      final ex = await _catchNetwork(() => src.fetchSatcatByNoradId(25544));
+
+      expect(ex.statusCode, 500);
+    });
+
+    test('enforces the minimum inter-request interval', () async {
+      // Advance the clock past the interval between calls; confirms the
+      // throttle path is exercised on the SATCAT request without a real sleep.
+      final clock = FakeClock(DateTime.utc(2024, 1, 15, 12));
+      const interval = Duration(seconds: 2);
+      final callTimes = <DateTime>[];
+
+      final src = SpaceTrackDataSource(
+        client: MockClient((request) async {
+          callTimes.add(clock.now);
+          return http.Response('[]', 200);
+        }),
+        identity: 'user@example.com',
+        password: 'password',
+        baseUrl: 'https://spacetrack.test',
+        minRequestInterval: interval,
+        timeout: const Duration(seconds: 5),
+        clock: clock,
+      );
+
+      await src.fetchSatcatByNoradId(25544);
+      clock.advance(const Duration(seconds: 3));
+      await src.fetchSatcatByNoradId(25544);
+
+      expect(callTimes, hasLength(2));
+      expect(
+        callTimes[1].difference(callTimes[0]),
+        const Duration(seconds: 3),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Rate limiting with fake clock
   // -------------------------------------------------------------------------
 

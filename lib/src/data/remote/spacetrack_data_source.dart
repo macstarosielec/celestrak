@@ -74,6 +74,19 @@ const String _kSpaceTrackDataPath = '/basicspacedata/query';
 /// GP class path segment within the basic space-data API.
 const String _kSpaceTrackGpClassPath = '/class/gp';
 
+/// SATCAT class path segment within the basic space-data API.
+///
+/// Full SATCAT query path:
+/// `{_kSpaceTrackDataPath}/class/satcat/NORAD_CAT_ID/<id>/CURRENT/Y/format/json`
+const String _kSpaceTrackSatcatClassPath = '/class/satcat';
+
+/// Predicate segment restricting a SATCAT query to the current record.
+///
+/// Space-Track keeps historical SATCAT rows; appending `CURRENT/Y` returns
+/// only the single current record for an object, giving single-record
+/// semantics analogous to the GP path's per-NORAD filter.
+const String _kSpaceTrackCurrentFilter = '/CURRENT/Y';
+
 /// Format segment appended to every GP query.
 const String _kSpaceTrackJsonFormat = '/format/json';
 
@@ -285,6 +298,54 @@ final class SpaceTrackDataSource {
     final uri = Uri.parse(
       '$_baseUrl$_kSpaceTrackDataPath$_kSpaceTrackGpClassPath'
       '/NORAD_CAT_ID/$noradId$_kSpaceTrackJsonFormat',
+    );
+
+    return _get(uri);
+  }
+
+  /// Fetches raw SATCAT metadata for a single satellite by NORAD catalog
+  /// number.
+  ///
+  /// Sends a GET request to
+  /// `{baseUrl}/basicspacedata/query/class/satcat/NORAD_CAT_ID/<id>`
+  /// `/CURRENT/Y/format/json`.
+  ///
+  /// The `CURRENT/Y` predicate restricts the response to the single current
+  /// SATCAT record for the object, mirroring the single-record semantics of
+  /// the GP path.
+  ///
+  /// SATCAT is metadata-only (owner, launch, decay, object type, size); it
+  /// carries no orbital elements and performs no orbital math. This is part of
+  /// the optional Space-Track path and is independent of the core CelesTrak
+  /// SATCAT flow.
+  ///
+  /// The minimum inter-request interval (`minRequestInterval`) is enforced
+  /// before the network call. If the previous request was too recent, this
+  /// method waits for the remaining interval to elapse.
+  ///
+  /// Throws [AuthenticationException] if the response is 401 or 403 (session
+  /// expired; caller should call [login] and retry).
+  ///
+  /// Throws [RateLimitException] if the server returns HTTP 429.
+  ///
+  /// Throws [NetworkException] on transport failures (socket, timeout, 5xx).
+  ///
+  /// Throws [ArgumentError] if [noradId] is less than 1.
+  Future<String> fetchSatcatByNoradId(int noradId) async {
+    if (noradId < 1) {
+      throw ArgumentError.value(
+        noradId,
+        'noradId',
+        'NORAD catalog numbers must be >= 1',
+      );
+    }
+
+    await _enforceRateLimit();
+
+    final uri = Uri.parse(
+      '$_baseUrl$_kSpaceTrackDataPath$_kSpaceTrackSatcatClassPath'
+      '/NORAD_CAT_ID/$noradId$_kSpaceTrackCurrentFilter'
+      '$_kSpaceTrackJsonFormat',
     );
 
     return _get(uri);
