@@ -49,11 +49,11 @@ void main() {
   });
 
   group('SatcatEntry.owner getter (parsed from fixtures)', () {
-    test('iss_25544_satcat.json -> owner United States, not EU-sovereign', () {
+    test('iss_25544_satcat.json -> owner International Space Station', () {
       final entry =
           SatcatEntry.fromCelestrakJson(loadFixture('iss_25544_satcat.json'));
-      expect(entry.ownerCode, 'US');
-      expect(entry.owner.name, 'United States');
+      expect(entry.ownerCode, 'ISS');
+      expect(entry.owner.name, 'International Space Station');
       expect(entry.owner.isEuSovereign, isFalse);
     });
 

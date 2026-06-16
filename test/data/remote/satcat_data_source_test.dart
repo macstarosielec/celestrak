@@ -208,7 +208,7 @@ void main() {
       expect(entry.noradId, equals(25544));
       expect(entry.name, equals('ISS (ZARYA)'));
       expect(entry.objectId, equals('1998-067A'));
-      expect(entry.ownerCode, equals('US'));
+      expect(entry.ownerCode, equals('ISS'));
       expect(entry.objectType, equals(SatcatObjectType.payload));
       expect(entry.isOnOrbit, isTrue);
       expect(entry.inclination, closeTo(51.64, 1e-9));

@@ -16,29 +16,35 @@ import 'package:meta/meta.dart';
 /// Classification of a catalogued space object by the SATCAT `OBJECT_TYPE`
 /// field.
 enum SatcatObjectType {
-  /// An operational or payload object (`PAYLOAD`).
+  /// A payload object. CelesTrak `OBJECT_TYPE` code `PAY`.
   payload,
 
-  /// A spent rocket body (`ROCKET BODY`).
+  /// A spent rocket body. CelesTrak `OBJECT_TYPE` code `R/B`.
   rocketBody,
 
-  /// Fragmentation or mission-related debris (`DEBRIS`).
+  /// Fragmentation or mission-related debris. CelesTrak `OBJECT_TYPE` code
+  /// `DEB`.
   debris,
 
-  /// Type unspecified, unrecognised, or absent.
+  /// Type unspecified, unrecognised, or absent. CelesTrak `OBJECT_TYPE` code
+  /// `UNK` (also empty or any unmodelled value).
   unknown;
 
   /// Resolves a raw CelesTrak `OBJECT_TYPE` string to a [SatcatObjectType].
   ///
-  /// `PAYLOAD` -> [payload], `ROCKET BODY` -> [rocketBody], `DEBRIS` ->
-  /// [debris]. `null`, an empty string, or any unrecognised value -> [unknown].
+  /// CelesTrak SATCAT encodes the type as a short code: `PAY` -> [payload],
+  /// `R/B` -> [rocketBody], `DEB` -> [debris], and `UNK` -> [unknown].
+  /// `null`, an empty string, or any unrecognised value also -> [unknown].
   /// Matching is case-insensitive and tolerant of surrounding whitespace.
+  ///
+  /// The full-word forms (`PAYLOAD`, `ROCKET BODY`, `DEBRIS`) are accepted as
+  /// tolerant aliases, but the short codes above are the real API contract.
   static SatcatObjectType fromCode(String? code) {
     final normalised = code?.trim().toUpperCase();
     return switch (normalised) {
-      'PAYLOAD' => SatcatObjectType.payload,
-      'ROCKET BODY' => SatcatObjectType.rocketBody,
-      'DEBRIS' => SatcatObjectType.debris,
+      'PAY' || 'PAYLOAD' => SatcatObjectType.payload,
+      'R/B' || 'ROCKET BODY' => SatcatObjectType.rocketBody,
+      'DEB' || 'DEBRIS' => SatcatObjectType.debris,
       _ => SatcatObjectType.unknown,
     };
   }

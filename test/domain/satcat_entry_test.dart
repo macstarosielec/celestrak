@@ -26,18 +26,29 @@ void main() {
       );
 
   group('SatcatObjectType.fromCode', () {
-    test('PAYLOAD -> payload', () {
-      expect(SatcatObjectType.fromCode('PAYLOAD'), SatcatObjectType.payload);
+    // CelesTrak SATCAT OBJECT_TYPE values are short codes, not full words.
+    test('PAY -> payload', () {
+      expect(SatcatObjectType.fromCode('PAY'), SatcatObjectType.payload);
     });
 
-    test('ROCKET BODY -> rocketBody', () {
+    test('R/B -> rocketBody', () {
+      expect(SatcatObjectType.fromCode('R/B'), SatcatObjectType.rocketBody);
+    });
+
+    test('DEB -> debris', () {
+      expect(SatcatObjectType.fromCode('DEB'), SatcatObjectType.debris);
+    });
+
+    test('UNK -> unknown', () {
+      expect(SatcatObjectType.fromCode('UNK'), SatcatObjectType.unknown);
+    });
+
+    test('full-word forms accepted as tolerant aliases', () {
+      expect(SatcatObjectType.fromCode('PAYLOAD'), SatcatObjectType.payload);
       expect(
         SatcatObjectType.fromCode('ROCKET BODY'),
         SatcatObjectType.rocketBody,
       );
-    });
-
-    test('DEBRIS -> debris', () {
       expect(SatcatObjectType.fromCode('DEBRIS'), SatcatObjectType.debris);
     });
 
@@ -54,10 +65,8 @@ void main() {
     });
 
     test('case-insensitive and whitespace-tolerant', () {
-      expect(
-        SatcatObjectType.fromCode('  payload '),
-        SatcatObjectType.payload,
-      );
+      expect(SatcatObjectType.fromCode('  pay '), SatcatObjectType.payload);
+      expect(SatcatObjectType.fromCode('r/b'), SatcatObjectType.rocketBody);
     });
   });
 
@@ -72,7 +81,7 @@ void main() {
       expect(iss.noradId, 25544);
       expect(iss.objectId, '1998-067A');
       expect(iss.name, 'ISS (ZARYA)');
-      expect(iss.ownerCode, 'US');
+      expect(iss.ownerCode, 'ISS');
     });
 
     test('is a payload', () {
@@ -175,10 +184,10 @@ void main() {
       expect(e.rcs, isNull);
     });
 
-    test('object type mapping for PAYLOAD via JSON', () {
+    test('object type mapping for PAY via JSON', () {
       final e = SatcatEntry.fromCelestrakJson(const <String, dynamic>{
         'NORAD_CAT_ID': 1,
-        'OBJECT_TYPE': 'PAYLOAD',
+        'OBJECT_TYPE': 'PAY',
       });
       expect(e.objectType, SatcatObjectType.payload);
     });

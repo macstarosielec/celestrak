@@ -186,12 +186,10 @@ void main() {
     });
 
     test('SatcatObjectType enum is accessible', () {
-      expect(SatcatObjectType.fromCode('PAYLOAD'), SatcatObjectType.payload);
-      expect(
-        SatcatObjectType.fromCode('ROCKET BODY'),
-        SatcatObjectType.rocketBody,
-      );
-      expect(SatcatObjectType.fromCode('DEBRIS'), SatcatObjectType.debris);
+      expect(SatcatObjectType.fromCode('PAY'), SatcatObjectType.payload);
+      expect(SatcatObjectType.fromCode('R/B'), SatcatObjectType.rocketBody);
+      expect(SatcatObjectType.fromCode('DEB'), SatcatObjectType.debris);
+      expect(SatcatObjectType.fromCode('UNK'), SatcatObjectType.unknown);
       expect(SatcatObjectType.fromCode('???'), SatcatObjectType.unknown);
     });
 
@@ -201,7 +199,7 @@ void main() {
         'NORAD_CAT_ID': 25544,
         'OBJECT_NAME': 'ISS (ZARYA)',
         'OWNER': 'US',
-        'OBJECT_TYPE': 'PAYLOAD',
+        'OBJECT_TYPE': 'PAY',
       });
       expect(entry.noradId, 25544);
       expect(entry.objectType, SatcatObjectType.payload);

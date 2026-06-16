@@ -29,7 +29,7 @@ void main() {
       expect(entry.noradId, equals(25544));
       expect(entry.name, equals('ISS (ZARYA)'));
       expect(entry.objectId, equals('1998-067A'));
-      expect(entry.ownerCode, equals('US'));
+      expect(entry.ownerCode, equals('ISS'));
       expect(entry.objectType, equals(SatcatObjectType.payload));
       expect(entry.opsStatusCode, equals('+'));
       expect(entry.launchDate, equals(DateTime.utc(1998, 11, 20)));
@@ -143,7 +143,7 @@ void main() {
     const header = 'NORAD_CAT_ID,OBJECT_NAME,OWNER,OBJECT_TYPE,LAUNCH_DATE';
 
     test('parses a single CSV data row', () {
-      const csv = '$header\n25544,ISS (ZARYA),US,PAYLOAD,1998-11-20';
+      const csv = '$header\n25544,ISS (ZARYA),US,PAY,1998-11-20';
       final entry = parser.parseCsv(csv);
       expect(entry.noradId, equals(25544));
       expect(entry.name, equals('ISS (ZARYA)'));
@@ -166,7 +166,7 @@ void main() {
     });
 
     test('accepts CRLF line endings', () {
-      const csv = '$header\r\n25544,ISS,US,PAYLOAD,1998-11-20\r\n';
+      const csv = '$header\r\n25544,ISS,US,PAY,1998-11-20\r\n';
       final entry = parser.parseCsv(csv);
       expect(entry.noradId, equals(25544));
     });
