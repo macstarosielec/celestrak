@@ -3,27 +3,27 @@
     "OBJECT_NAME": "ISS (ZARYA)",
     "OBJECT_ID": "1998-067A",
     "NORAD_CAT_ID": 25544,
-    "OBJECT_TYPE": "PAYLOAD",
+    "OBJECT_TYPE": "PAY",
     "OWNER": "ISS",
     "LAUNCH_DATE": "1998-11-20"
   },
   {
     "OBJECT_NAME": "MISSING NORAD ID",
     "OBJECT_ID": "2000-999X",
-    "OBJECT_TYPE": "PAYLOAD",
+    "OBJECT_TYPE": "PAY",
     "OWNER": "US"
   },
   {
     "OBJECT_NAME": "NON NUMERIC NORAD",
     "NORAD_CAT_ID": "ABCDE",
-    "OBJECT_TYPE": "DEBRIS",
+    "OBJECT_TYPE": "DEB",
     "OWNER": "CIS"
   },
   {
     "OBJECT_NAME": "HST",
     "OBJECT_ID": "1990-037B",
     "NORAD_CAT_ID": 20580,
-    "OBJECT_TYPE": "PAYLOAD",
+    "OBJECT_TYPE": "PAY",
     "OWNER": "US",
     "LAUNCH_DATE": "1990-04-24"
   }
