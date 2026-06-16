@@ -81,7 +81,8 @@ final class SatcatDataSource {
   /// query keys, per the CelesTrak API contract) and issues an HTTPS GET.
   ///
   /// Throws [SatelliteNotFoundException] when CelesTrak returns no record for
-  /// [noradId] (an empty body or an empty JSON array).
+  /// [noradId] (the CelesTrak "No ... data found" sentinel, an empty body, or
+  /// an empty JSON array).
   ///
   /// Throws [SatcatParseException] when the body is present but malformed.
   ///
@@ -209,13 +210,14 @@ final class SatcatDataSource {
   }
 
   /// Decodes a single-record SATCAT response into a JSON object, or `null`
-  /// when CelesTrak signalled no record (empty body or empty array).
+  /// when CelesTrak signalled no record (the no-data sentinel, an empty body,
+  /// or an empty array).
   ///
   /// CelesTrak wraps a `FORMAT=JSON` `CATNR` lookup in a JSON array; a present
   /// record is its first element. A bare object body is also accepted for
   /// robustness.
   Map<String, dynamic>? _singleRecordOrNull(String body) {
-    if (body.trim().isEmpty) return null;
+    if (_isNoDataSentinel(body)) return null;
 
     final decoded = _decodeJson(body);
     if (decoded is List) {
@@ -234,7 +236,8 @@ final class SatcatDataSource {
 
   /// Decodes a bulk SATCAT response into a list of JSON objects.
   ///
-  /// An empty body decodes to an empty list. A top-level JSON object (the
+  /// An empty body or the CelesTrak no-data sentinel yields an empty list. A
+  /// top-level JSON object (the
   /// shape CelesTrak uses for a single record) is wrapped in a one-element
   /// list so callers can treat every bulk response uniformly.
   ///
@@ -242,7 +245,7 @@ final class SatcatDataSource {
   /// silently dropped here, before [SatcatParser] sees the rows; such elements
   /// are not counted as skipped rows by the parser.
   List<Map<String, dynamic>> _decodeList(String body) {
-    if (body.trim().isEmpty) return const [];
+    if (_isNoDataSentinel(body)) return const [];
 
     final decoded = _decodeJson(body);
     if (decoded is List) {
@@ -282,4 +285,24 @@ final class SatcatDataSource {
       });
     return base.replace(queryParameters: merged);
   }
+}
+
+/// Matches the CelesTrak "no data" plain-text response.
+///
+/// For `FORMAT=JSON` requests CelesTrak returns a short text message (not JSON)
+/// when a query matches nothing: `gp.php` returns "No GP data found" and the
+/// SATCAT endpoint returns "No SATCAT data found". This pattern covers that
+/// family ("No &lt;source&gt; data found"), so a no-match resolves to a
+/// not-found / empty result rather than a parse error. A genuinely malformed
+/// JSON body does not match and still surfaces as a [SatcatParseException].
+final RegExp _noDataSentinel = RegExp(
+  r'^no\s+(?:\w+\s+)?data\s+found\.?$',
+  caseSensitive: false,
+);
+
+/// Whether [body] is a CelesTrak no-data response: an empty body, or the
+/// "No ... data found" sentinel.
+bool _isNoDataSentinel(String body) {
+  final trimmed = body.trim();
+  return trimmed.isEmpty || _noDataSentinel.hasMatch(trimmed);
 }
