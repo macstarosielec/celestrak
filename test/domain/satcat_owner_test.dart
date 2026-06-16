@@ -132,31 +132,49 @@ void main() {
       expect(owner.name, 'France/Germany');
     });
 
-    // Ground-truth list: the EU-sovereign codes the conservative table ships.
-    // This is the kept EU-27 member-state subset (the speculative single-
-    // country long tail was dropped in the conservative trim); the European
-    // multinational organisations (ESA, EUME, EUTE, FGER) are asserted above.
-    const keptEuMemberCodes = <String, String>{
-      'AUS': 'Austria',
+    test('FRIT (joint France/Italy, all-EU-member) is EU-sovereign', () {
+      final owner = satcatOwnerForCode('FRIT');
+      expect(owner.isEuSovereign, isTrue);
+      expect(owner.region, 'Europe');
+      expect(owner.name, 'France/Italy');
+    });
+
+    test('ESRO (ESA predecessor) is EU-sovereign', () {
+      expect(satcatOwnerForCode('ESRO').isEuSovereign, isTrue);
+    });
+
+    // Ground-truth list: every EU-27 member state that has a CelesTrak owner
+    // code. Cyprus, Latvia, Malta, and Slovakia have no code on the
+    // authoritative list and so are absent. The European multinational
+    // organisations (ESA, ESRO, EUME, EUTE, FGER, FRIT) are asserted above.
+    const euMemberCodes = <String, String>{
+      'ASRA': 'Austria',
       'BEL': 'Belgium',
+      'BUL': 'Bulgaria',
+      'HRV': 'Croatia',
       'CZCH': 'Czechia',
       'DEN': 'Denmark',
+      'EST': 'Estonia',
       'FIN': 'Finland',
       'FR': 'France',
       'GER': 'Germany',
       'GREC': 'Greece',
       'HUN': 'Hungary',
+      'IRL': 'Ireland',
       'IT': 'Italy',
+      'LTU': 'Lithuania',
       'LUXE': 'Luxembourg',
       'NETH': 'Netherlands',
       'POL': 'Poland',
       'POR': 'Portugal',
+      'ROM': 'Romania',
+      'SVN': 'Slovenia',
       'SPN': 'Spain',
       'SWED': 'Sweden',
     };
 
-    test('every kept EU member-state code is EU-sovereign and in Europe', () {
-      keptEuMemberCodes.forEach((code, expectedName) {
+    test('every EU member-state code is EU-sovereign and in Europe', () {
+      euMemberCodes.forEach((code, expectedName) {
         final owner = satcatOwnerForCode(code);
         expect(
           owner.isEuSovereign,
@@ -169,11 +187,18 @@ void main() {
     });
 
     test('every EU-sovereign code in the table is an expected EU owner', () {
-      // The only EU-sovereign owners are the kept member states plus the four
+      // The only EU-sovereign owners are the member states plus the six
       // European multinational organisations; nothing else may carry the flag.
-      const euOrgCodes = <String>{'ESA', 'EUME', 'EUTE', 'FGER'};
+      const euOrgCodes = <String>{
+        'ESA',
+        'ESRO',
+        'EUME',
+        'EUTE',
+        'FGER',
+        'FRIT',
+      };
       final expectedEuCodes = <String>{
-        ...keptEuMemberCodes.keys,
+        ...euMemberCodes.keys,
         ...euOrgCodes,
       };
       final actualEuCodes = <String>{
@@ -288,6 +313,48 @@ void main() {
       kSatcatOwnerCodes.forEach((key, owner) {
         expect(satcatOwnerForCode(key), equals(owner));
       });
+    });
+
+    test('carries the full reconciled CelesTrak source list', () {
+      // The authoritative celestrak.org/satcat/sources.php list has 132 codes;
+      // we map all but the TBD/UNK administrative sentinels (= 130). Guards
+      // against an accidental bulk drop on a future edit.
+      expect(kSatcatOwnerCodes, hasLength(130));
+      expect(kSatcatOwnerCodes.containsKey('TBD'), isFalse);
+      expect(kSatcatOwnerCodes.containsKey('UNK'), isFalse);
+    });
+  });
+
+  group('CEL-150 reconciliation regressions (corrected owner codes)', () {
+    // The pre-reconciliation knowledge-built table swapped Austria/Australia
+    // and invented non-CelesTrak codes (AUST, RSA, TWN). Lock the fixes in.
+    test('AUS is Australia in Oceania, not EU-sovereign', () {
+      final owner = satcatOwnerForCode('AUS');
+      expect(owner.name, 'Australia');
+      expect(owner.region, 'Oceania');
+      expect(owner.isEuSovereign, isFalse);
+    });
+
+    test('Austria is ASRA in Europe, EU-sovereign', () {
+      final owner = satcatOwnerForCode('ASRA');
+      expect(owner.name, 'Austria');
+      expect(owner.region, 'Europe');
+      expect(owner.isEuSovereign, isTrue);
+    });
+
+    test('South Africa is SAFR, Taiwan is ROC', () {
+      expect(satcatOwnerForCode('SAFR').name, 'South Africa');
+      expect(satcatOwnerForCode('SAFR').region, 'Africa');
+      expect(satcatOwnerForCode('ROC').name, 'Taiwan');
+      expect(satcatOwnerForCode('ROC').region, 'Asia');
+    });
+
+    test('invented non-CelesTrak codes are gone (now passthrough)', () {
+      for (final bogus in <String>['AUST', 'RSA', 'TWN']) {
+        final owner = satcatOwnerForCode(bogus);
+        expect(owner.name, bogus, reason: '$bogus must not be a mapped owner');
+        expect(owner.region, isNull, reason: '$bogus must be passthrough');
+      }
     });
   });
 }
