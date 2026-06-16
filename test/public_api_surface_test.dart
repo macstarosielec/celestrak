@@ -9,6 +9,7 @@
 ///   CelestrakClient, SpaceTrackClient, SpaceTrackQuery,
 ///   CacheStore, MemoryCacheStore, OmmParser, ParseBenchmarkHook,
 ///   NullParseBenchmarkHook, Clock, SystemClock, kDefaultTtl,
+///   kSatcatDefaultTtl, kSatcatStaleThreshold,
 ///   kDefaultMaxAttempts, kDefaultTimeout, SatelliteCategory, TleSource,
 ///   CelestrakFormat, CelestrakException, AuthenticationException,
 ///   CacheMissException, NetworkException, OmmParseException,
@@ -82,6 +83,14 @@ void main() {
 
     test('kDefaultTtl is accessible', () {
       expect(kDefaultTtl, const Duration(hours: 2));
+    });
+
+    test('kSatcatDefaultTtl is accessible', () {
+      expect(kSatcatDefaultTtl, const Duration(days: 7));
+    });
+
+    test('kSatcatStaleThreshold is accessible', () {
+      expect(kSatcatStaleThreshold, const Duration(days: 30));
     });
 
     test('kDefaultMaxAttempts is accessible', () {

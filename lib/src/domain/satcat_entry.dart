@@ -48,6 +48,19 @@ enum SatcatObjectType {
       _ => SatcatObjectType.unknown,
     };
   }
+
+  /// The canonical CelesTrak `OBJECT_TYPE` short code for this type.
+  ///
+  /// Exact inverse of [fromCode] for the short-code forms: [payload] -> `PAY`,
+  /// [rocketBody] -> `R/B`, [debris] -> `DEB`, [unknown] -> `UNK`. Feeding the
+  /// result back through [fromCode] always yields the original value, so it is
+  /// safe to use when re-serialising a [SatcatEntry] for caching.
+  String get code => switch (this) {
+        SatcatObjectType.payload => 'PAY',
+        SatcatObjectType.rocketBody => 'R/B',
+        SatcatObjectType.debris => 'DEB',
+        SatcatObjectType.unknown => 'UNK',
+      };
 }
 
 /// Sentinel marking an omitted [SatcatEntry.copyWith] argument.
@@ -123,6 +136,45 @@ final class SatcatEntry {
           SatcatObjectType.fromCode(_optionalString(json, 'OBJECT_TYPE')),
       opsStatusCode: _optionalString(json, 'OPS_STATUS_CODE'),
     );
+  }
+
+  /// Serialises this entry to a CelesTrak-shaped JSON map for caching.
+  ///
+  /// Emits the same uppercase SATCAT field names that
+  /// [SatcatEntry.fromCelestrakJson] reads, so the round-trip
+  /// `SatcatEntry.fromCelestrakJson(entry.toCacheJson()) == entry` holds for
+  /// every field, including nulls and every [SatcatObjectType].
+  ///
+  /// Encoding choices, all chosen to be exact inverses of the parser:
+  /// - Dates ([launchDate], [decayDate]) are emitted as `yyyy-MM-dd`. The
+  ///   parser widens a date-only value to UTC midnight, so a date that is
+  ///   already at UTC midnight round-trips exactly. A `null` date is emitted
+  ///   as the empty string `''`, which the parser reads back as `null`; for
+  ///   [decayDate] this is precisely the on-orbit ("no decay") convention.
+  /// - Optional strings ([objectId], [launchSite], [opsStatusCode]) are
+  ///   emitted as `''` when `null`; the parser maps an empty string back to
+  ///   `null`. An empty [ownerCode] (already `''`) round-trips to `''`.
+  /// - Optional numbers are emitted as `null` when absent (the parser tolerates
+  ///   a missing or `null` value and yields `null`).
+  /// - [objectType] is emitted via [SatcatObjectType.code], the inverse of
+  ///   [SatcatObjectType.fromCode].
+  Map<String, dynamic> toCacheJson() {
+    return <String, dynamic>{
+      'NORAD_CAT_ID': noradId,
+      'OBJECT_ID': objectId ?? '',
+      'OBJECT_NAME': name,
+      'OWNER': ownerCode,
+      'OBJECT_TYPE': objectType.code,
+      'OPS_STATUS_CODE': opsStatusCode ?? '',
+      'LAUNCH_DATE': _encodeDate(launchDate),
+      'LAUNCH_SITE': launchSite ?? '',
+      'DECAY_DATE': _encodeDate(decayDate),
+      'PERIOD': periodMinutes,
+      'INCLINATION': inclination,
+      'APOGEE': apogeeKm,
+      'PERIGEE': perigeeKm,
+      'RCS': rcs,
+    };
   }
 
   /// NORAD catalog number. Required; supports 6+ digit values.
@@ -282,6 +334,20 @@ int _requiredInt(Map<String, dynamic> json, String key) {
     throw FormatException('expected an integer for "$key", got "$value"');
   }
   return parsed;
+}
+
+/// Encodes a UTC [date] as a `yyyy-MM-dd` string, or `''` when `null`.
+///
+/// Exact inverse of [_optionalDate] for date-only values: the parser reads a
+/// `yyyy-MM-dd` string back as that date at UTC midnight, and an empty string
+/// back as `null`.
+String _encodeDate(DateTime? date) {
+  if (date == null) return '';
+  final utc = date.toUtc();
+  final y = utc.year.toString().padLeft(4, '0');
+  final m = utc.month.toString().padLeft(2, '0');
+  final d = utc.day.toString().padLeft(2, '0');
+  return '$y-$m-$d';
 }
 
 /// Reads an optional string field. Returns `null` when absent or when the

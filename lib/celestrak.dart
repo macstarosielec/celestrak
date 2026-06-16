@@ -63,7 +63,10 @@
 ///
 /// ## Configuration constants
 ///
-/// - [kDefaultTtl] - default cache TTL (2 hours).
+/// - [kDefaultTtl] - default GP cache TTL (2 hours).
+/// - [kSatcatDefaultTtl] - default SATCAT cache TTL (7 days).
+/// - [kSatcatStaleThreshold] - SATCAT staleness threshold (30 days;
+///   informational, since SATCAT metadata is near-static).
 /// - [kDefaultMaxAttempts] - default total HTTP attempts (5).
 /// - [kDefaultTimeout] - default per-attempt HTTP deadline (30 seconds).
 library;
