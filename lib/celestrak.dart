@@ -22,6 +22,11 @@
 ///   `maxAttempts`, `staleThreshold`, `clock`, `useIsolate` (offloads
 ///   multi-record category parses to a worker isolate via `Isolate.run`,
 ///   keeping the main isolate free during large responses such as Starlink).
+/// - [SatcatClient] - high-level SATCAT facade; covers `fetchByNoradId`,
+///   `fetchCategory`, `fetchCategoryByGroup`, `fetchByIntlDesignator`,
+///   `fetchAll`, an indexed `lookup`, per-key cache-age inspection, and
+///   `clearCache`. A concern separate from [CelestrakClient] (ADR-14); join
+///   the two datasets on `noradId`.
 /// - [SpaceTrackClient] - credentialed Space-Track.org facade.
 /// - [SpaceTrackQuery] - value object describing a Space-Track query.
 /// - [SatelliteTle] - the primary orbital record; carries `line1`/`line2`,
@@ -76,6 +81,7 @@ library;
 // directives below are the authoritative public-API surface; these imports
 // are only required for doc-comment reference resolution in this file.
 import 'package:celestrak/src/client/celestrak_client.dart';
+import 'package:celestrak/src/client/satcat_client.dart';
 import 'package:celestrak/src/client/spacetrack_client.dart';
 import 'package:celestrak/src/client/spacetrack_query.dart';
 import 'package:celestrak/src/data/local/cache_store.dart';
@@ -98,6 +104,7 @@ import 'package:celestrak/src/network/http_transport.dart'
     hide HttpTransport, kBackoffBase, kBackoffMax;
 
 export 'src/client/celestrak_client.dart';
+export 'src/client/satcat_client.dart';
 export 'src/client/spacetrack_client.dart';
 export 'src/client/spacetrack_query.dart';
 export 'src/data/local/cache_store.dart';
