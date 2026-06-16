@@ -48,6 +48,9 @@
 ///   hierarchy; no raw `http` or `dart:io` exception escapes the public API.
 /// - [TleRepository] - abstract repository interface; implement to provide
 ///   a custom cache/fetch/parse pipeline.
+/// - [SatcatRepository] - abstract repository interface for SATCAT metadata;
+///   implement to provide a custom SATCAT fetch/parse pipeline (a concern
+///   separate from [TleRepository]).
 /// - [CacheStore] - abstract interface for key-value byte caching; pass a
 ///   custom implementation to [CelestrakClient.withStore].
 /// - [MemoryCacheStore] - in-memory [CacheStore] for testing and short-lived
@@ -84,6 +87,7 @@ import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/omm.dart';
 import 'package:celestrak/src/domain/satcat_entry.dart';
 import 'package:celestrak/src/domain/satcat_owner.dart';
+import 'package:celestrak/src/domain/satcat_repository.dart';
 import 'package:celestrak/src/domain/satellite_tle.dart';
 import 'package:celestrak/src/domain/staleness.dart';
 import 'package:celestrak/src/domain/tle_repository.dart';
@@ -105,6 +109,7 @@ export 'src/domain/failures.dart';
 export 'src/domain/omm.dart';
 export 'src/domain/satcat_entry.dart';
 export 'src/domain/satcat_owner.dart';
+export 'src/domain/satcat_repository.dart';
 export 'src/domain/satellite_tle.dart';
 export 'src/domain/staleness.dart';
 export 'src/domain/tle_repository.dart';

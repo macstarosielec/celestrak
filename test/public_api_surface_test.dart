@@ -15,7 +15,7 @@
 ///   RateLimitException, SatelliteNotFoundException, TleParseException,
 ///   TleRepository, Omm, SatelliteTle, StalenessChecker,
 ///   defaultStaleThreshold, SatcatOwner, satcatOwnerForCode, SatcatEntry,
-///   SatcatObjectType, SatcatParser, SatcatParseException.
+///   SatcatObjectType, SatcatParser, SatcatParseException, SatcatRepository.
 ///
 /// Internal symbols not exported (compile-time-checked via
 /// `dart analyze` passing without undefined-identifier errors):
@@ -211,6 +211,12 @@ void main() {
       const e = SatcatParseException('x', field: 'NORAD_CAT_ID');
       expect(e, isA<CelestrakException>());
       expect(e.field, 'NORAD_CAT_ID');
+    });
+
+    test('SatcatRepository interface is accessible as a type', () {
+      // Cannot instantiate (abstract interface); verify as a type annotation.
+      SatcatRepository? repo;
+      expect(repo, isNull);
     });
   });
 
