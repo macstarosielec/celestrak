@@ -81,8 +81,8 @@ final class SatcatDataSource {
   /// query keys, per the CelesTrak API contract) and issues an HTTPS GET.
   ///
   /// Throws [SatelliteNotFoundException] when CelesTrak returns no record for
-  /// [noradId] (the CelesTrak "No ... data found" sentinel, an empty body, or
-  /// an empty JSON array).
+  /// [noradId] (the CelesTrak "No SATCAT records found" sentinel, an empty
+  /// body, or an empty JSON array).
   ///
   /// Throws [SatcatParseException] when the body is present but malformed.
   ///
@@ -287,21 +287,22 @@ final class SatcatDataSource {
   }
 }
 
-/// Matches the CelesTrak "no data" plain-text response.
+/// Matches the CelesTrak "no records" plain-text response.
 ///
 /// For `FORMAT=JSON` requests CelesTrak returns a short text message (not JSON)
-/// when a query matches nothing: `gp.php` returns "No GP data found" and the
-/// SATCAT endpoint returns "No SATCAT data found". This pattern covers that
-/// family ("No &lt;source&gt; data found"), so a no-match resolves to a
-/// not-found / empty result rather than a parse error. A genuinely malformed
-/// JSON body does not match and still surfaces as a [SatcatParseException].
+/// when a query matches nothing: the SATCAT endpoint returns
+/// "No SATCAT records found" and `gp.php` returns "No GP data found". This
+/// pattern covers that family ("No &lt;source&gt; records/data found"), so a
+/// no-match resolves to a not-found / empty result rather than a parse error. A
+/// genuinely malformed JSON body does not match and still surfaces as a
+/// [SatcatParseException].
 final RegExp _noDataSentinel = RegExp(
-  r'^no\s+(?:\w+\s+)?data\s+found\.?$',
+  r'^no\s+(?:\w+\s+)?(?:record|data)s?\s+found\.?$',
   caseSensitive: false,
 );
 
 /// Whether [body] is a CelesTrak no-data response: an empty body, or the
-/// "No ... data found" sentinel.
+/// "No ... records/data found" sentinel.
 bool _isNoDataSentinel(String body) {
   final trimmed = body.trim();
   return trimmed.isEmpty || _noDataSentinel.hasMatch(trimmed);

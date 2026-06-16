@@ -285,14 +285,14 @@ void main() {
     });
 
     test(
-      'CelesTrak "No SATCAT data found" sentinel throws '
+      'CelesTrak "No SATCAT records found" sentinel throws '
       'SatelliteNotFoundException',
       () async {
-        // The real SATCAT endpoint returns a plain-text "no data" message (not
-        // an empty JSON array) for a CATNR miss, mirroring gp.php's
-        // "No GP data found". It must map to a not-found, not a parse error.
+        // The real SATCAT endpoint returns the plain-text body
+        // "No SATCAT records found\r\n" (not an empty JSON array) for a CATNR
+        // miss. It must map to a not-found, not a parse error.
         final source = _source(
-          (_) async => http.Response('No SATCAT data found', 200),
+          (_) async => http.Response('No SATCAT records found\r\n', 200),
         );
 
         final ex = await _catchNotFound(() => source.fetchByNoradId(99999999));
@@ -444,12 +444,13 @@ void main() {
       expect(entries, isEmpty);
     });
 
-    test('CelesTrak "No SATCAT data found" sentinel yields an empty list',
+    test('CelesTrak "No SATCAT records found" sentinel yields an empty list',
         () async {
-      // A bulk query that matches nothing returns the plain-text sentinel, not
-      // an empty array. It must map to an empty list, not a parse error.
+      // A bulk query that matches nothing returns the plain-text body
+      // "No SATCAT records found", not an empty array. It must map to an empty
+      // list, not a parse error.
       final source = _source(
-        (_) async => http.Response('No SATCAT data found', 200),
+        (_) async => http.Response('No SATCAT records found\r\n', 200),
       );
 
       final entries = await source.fetchByGroup('nonexistent');
