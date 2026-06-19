@@ -56,6 +56,7 @@ library;
 import 'dart:convert' show jsonDecode;
 
 import 'package:celestrak/src/client/spacetrack_query.dart';
+import 'package:celestrak/src/data/parsers/omm_parse_observer.dart';
 import 'package:celestrak/src/data/parsers/omm_parser.dart';
 import 'package:celestrak/src/data/parsers/satcat_parser.dart';
 import 'package:celestrak/src/data/remote/spacetrack_data_source.dart';
@@ -127,6 +128,7 @@ final class SpaceTrackClient {
     Duration minRequestInterval = kDefaultMinRequestInterval,
     Duration timeout = kSpaceTrackDefaultTimeout,
     Clock clock = const SystemClock(),
+    OmmParseObserver? observer,
   }) : this._init(
           client: http.Client(),
           identity: identity,
@@ -136,6 +138,7 @@ final class SpaceTrackClient {
           timeout: timeout,
           clock: clock,
           ownsClient: true,
+          observer: observer,
         );
 
   /// Creates a [SpaceTrackClient] with a caller-supplied [http.Client].
@@ -155,6 +158,7 @@ final class SpaceTrackClient {
     Duration minRequestInterval = kDefaultMinRequestInterval,
     Duration timeout = kSpaceTrackDefaultTimeout,
     Clock clock = const SystemClock(),
+    OmmParseObserver? observer,
   }) : this._init(
           client: client,
           identity: identity,
@@ -164,6 +168,7 @@ final class SpaceTrackClient {
           timeout: timeout,
           clock: clock,
           ownsClient: false,
+          observer: observer,
         );
 
   /// Private initialising constructor. Ownership tracking is expressed only
@@ -177,6 +182,7 @@ final class SpaceTrackClient {
     required Duration timeout,
     required Clock clock,
     required bool ownsClient,
+    required OmmParseObserver? observer,
   })  : _dataSource = _hasCredentials(identity, password)
             ? SpaceTrackDataSource(
                 client: client,
@@ -190,7 +196,8 @@ final class SpaceTrackClient {
             : null,
         _httpClient = client,
         _clock = clock,
-        _ownsClient = ownsClient;
+        _ownsClient = ownsClient,
+        _ommParser = OmmParser(observer: observer);
 
   /// Returns `true` when both [identity] and [password] are non-null and
   /// non-empty.
@@ -212,7 +219,7 @@ final class SpaceTrackClient {
   final bool _ownsClient;
   bool _disposed = false;
 
-  static const _ommParser = OmmParser();
+  final OmmParser _ommParser;
   static const _satcatParser = SatcatParser();
 
   /// `true` when credentials were supplied and the source is usable.

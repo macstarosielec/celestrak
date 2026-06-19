@@ -13,6 +13,76 @@ void main() {
     return jsonDecode(content) as Map<String, dynamic>;
   }
 
+  const defaultedFields = {
+    'CENTER_NAME',
+    'REF_FRAME',
+    'TIME_SYSTEM',
+    'MEAN_ELEMENT_THEORY',
+  };
+
+  Map<String, dynamic> withoutDefaults(Map<String, dynamic> json) =>
+      Map<String, dynamic>.of(json)
+        ..removeWhere((key, _) => defaultedFields.contains(key));
+
+  group('OmmParser - default-field observer', () {
+    test('notifies once with per-field counts when all are defaulted', () {
+      final calls = <Map<String, int>>[];
+
+      OmmParser(
+        observer: calls.add,
+      ).parse(withoutDefaults(loadFixture('iss_omm.json')));
+
+      expect(calls, hasLength(1));
+      expect(calls.single, {
+        'CENTER_NAME': 1,
+        'REF_FRAME': 1,
+        'TIME_SYSTEM': 1,
+        'MEAN_ELEMENT_THEORY': 1,
+      });
+    });
+
+    test('does not notify when every field is present', () {
+      final calls = <Map<String, int>>[];
+
+      OmmParser(observer: calls.add).parse(loadFixture('iss_omm.json'));
+
+      expect(calls, isEmpty);
+    });
+
+    test('still applies the canonical defaults', () {
+      final omm = parser.parse(withoutDefaults(loadFixture('iss_omm.json')));
+
+      expect(omm.centerName, equals('EARTH'));
+      expect(omm.refFrame, equals('TEME'));
+      expect(omm.timeSystem, equals('UTC'));
+      expect(omm.meanElementTheory, equals('SGP4'));
+    });
+
+    test('parseAllLazy aggregates batch counts into one call', () {
+      final calls = <Map<String, int>>[];
+      final stripped = withoutDefaults(loadFixture('iss_omm.json'));
+
+      OmmParser(
+        observer: calls.add,
+      ).parseAllLazy([stripped, stripped, stripped]).toList();
+
+      expect(calls, hasLength(1));
+      expect(calls.single, {
+        'CENTER_NAME': 3,
+        'REF_FRAME': 3,
+        'TIME_SYSTEM': 3,
+        'MEAN_ELEMENT_THEORY': 3,
+      });
+    });
+
+    test('a null observer (default) parses without error', () {
+      expect(
+        () => parser.parse(withoutDefaults(loadFixture('iss_omm.json'))),
+        returnsNormally,
+      );
+    });
+  });
+
   group('OmmParser.parse - ISS fixture', () {
     late Map<String, dynamic> json;
 

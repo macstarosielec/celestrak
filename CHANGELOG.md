@@ -4,6 +4,29 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-20
+
+### Added
+
+- `OmmParseObserver`, an optional callback (`void Function(Map<String, int>)`)
+  on `OmmParser`, `CelestrakClient`, `SpaceTrackClient`, and `TleRepositoryImpl`.
+  It is invoked once per parse operation with the aggregate count of CCSDS
+  metadata fields (`CENTER_NAME`, `REF_FRAME`, `TIME_SYSTEM`,
+  `MEAN_ELEMENT_THEORY`) that were absent and defaulted. See
+  [ADR-0014](doc/adr/0014-omm-parse-observer.md).
+
+### Changed
+
+- **OMM parsing is now silent by default.** `OmmParser` no longer writes a
+  `dart:developer` warning when it defaults a missing CCSDS metadata field.
+  CelesTrak GP data always omits these fields, so the previous behaviour
+  produced one warning per field per record (tens of thousands of lines for a
+  large category fetch). Supply an `OmmParseObserver` to be notified instead.
+
+### Removed
+
+- The unconditional `dart:developer` logging in `OmmParser`.
+
 ## [1.2.0] - 2026-06-16
 
 ### Added

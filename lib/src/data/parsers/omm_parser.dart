@@ -1,8 +1,7 @@
 /// Parsing of CelesTrak OMM JSON into [Omm] domain models.
 library;
 
-import 'dart:developer' show log;
-
+import 'package:celestrak/src/data/parsers/omm_parse_observer.dart';
 import 'package:celestrak/src/data/parsers/parse_benchmark_hook.dart';
 import 'package:celestrak/src/domain/failures.dart';
 import 'package:celestrak/src/domain/omm.dart';
@@ -21,11 +20,17 @@ final class OmmParser {
   ///
   /// [benchmarkHook] receives timing signals around multi-record parses;
   /// defaults to [NullParseBenchmarkHook].
+  ///
+  /// [observer] is notified once per parse operation when CCSDS metadata
+  /// fields are absent and defaulted; `null` (the default) is silent.
   const OmmParser({
     ParseBenchmarkHook benchmarkHook = const NullParseBenchmarkHook(),
-  }) : _hook = benchmarkHook;
+    OmmParseObserver? observer,
+  })  : _hook = benchmarkHook,
+        _observer = observer;
 
   final ParseBenchmarkHook _hook;
+  final OmmParseObserver? _observer;
 
   /// Parses a single CelesTrak OMM JSON object into an [Omm].
   ///
@@ -38,14 +43,26 @@ final class OmmParser {
   /// Throws an [OmmParseException] if a mandatory field is missing, null, or
   /// has an unexpected type, or if `EPOCH` is not a valid ISO-8601 timestamp.
   Omm parse(Map<String, dynamic> json) {
+    final defaults = <String, int>{};
+    final omm = _parse(json, defaults);
+    if (defaults.isNotEmpty) _observer?.call(Map.unmodifiable(defaults));
+    return omm;
+  }
+
+  Omm _parse(Map<String, dynamic> json, Map<String, int> defaults) {
     return Omm(
       objectName: _optionalString(json, 'OBJECT_NAME'),
       objectId: _optionalString(json, 'OBJECT_ID'),
       epoch: _epoch(json, 'EPOCH'),
-      centerName: _stringOrDefault(json, 'CENTER_NAME', 'EARTH'),
-      refFrame: _stringOrDefault(json, 'REF_FRAME', 'TEME'),
-      timeSystem: _stringOrDefault(json, 'TIME_SYSTEM', 'UTC'),
-      meanElementTheory: _stringOrDefault(json, 'MEAN_ELEMENT_THEORY', 'SGP4'),
+      centerName: _stringOrDefault(json, 'CENTER_NAME', 'EARTH', defaults),
+      refFrame: _stringOrDefault(json, 'REF_FRAME', 'TEME', defaults),
+      timeSystem: _stringOrDefault(json, 'TIME_SYSTEM', 'UTC', defaults),
+      meanElementTheory: _stringOrDefault(
+        json,
+        'MEAN_ELEMENT_THEORY',
+        'SGP4',
+        defaults,
+      ),
       meanMotion: _double(json, 'MEAN_MOTION'),
       eccentricity: _double(json, 'ECCENTRICITY'),
       inclination: _double(json, 'INCLINATION'),
@@ -85,15 +102,17 @@ final class OmmParser {
 
     _hook.onParseStart(ParseBenchmarkHook.labelOmm);
     var count = 0;
+    final defaults = <String, int>{};
     final sw = Stopwatch()..start();
     try {
       for (final entry in jsonList) {
-        yield parse(entry);
+        yield _parse(entry, defaults);
         count++;
       }
     } finally {
       sw.stop();
       _hook.onParseEnd(ParseBenchmarkHook.labelOmm, count, sw.elapsed);
+      if (defaults.isNotEmpty) _observer?.call(Map.unmodifiable(defaults));
     }
   }
 }
@@ -118,17 +137,11 @@ String _stringOrDefault(
   Map<String, dynamic> json,
   String key,
   String fallback,
+  Map<String, int> defaults,
 ) {
   final value = json[key];
   if (value == null) {
-    log(
-      'OmmParser: missing CCSDS field "$key" — '
-      'using default value "$fallback". '
-      'Verify the data source returns this field to avoid silent '
-      'wrong-reference-frame propagation.',
-      name: 'celestrak.omm_parser',
-      level: 900, // Level.WARNING
-    );
+    defaults[key] = (defaults[key] ?? 0) + 1;
     return fallback;
   }
   return value.toString();

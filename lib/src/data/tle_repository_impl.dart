@@ -11,6 +11,7 @@ import 'package:celestrak/src/data/local/cache_key_builder.dart';
 import 'package:celestrak/src/data/local/cache_store.dart';
 import 'package:celestrak/src/data/parse_runner_stub.dart'
     if (dart.library.io) 'package:celestrak/src/data/parse_runner_native.dart';
+import 'package:celestrak/src/data/parsers/omm_parse_observer.dart';
 import 'package:celestrak/src/data/parsers/omm_parser.dart';
 import 'package:celestrak/src/data/parsers/tle_omm_stitcher.dart';
 import 'package:celestrak/src/data/parsers/tle_parser.dart';
@@ -91,22 +92,28 @@ final class TleRepositoryImpl implements TleRepository {
   /// worker isolate so the main isolate is not blocked during large category
   /// fetches. Defaults to `false`. Ignored on web and WASM, which have no
   /// isolate support; parses run synchronously there regardless.
-  const TleRepositoryImpl({
+  /// [observer] is notified once per parse operation when OMM metadata fields
+  /// are absent and defaulted; `null` (the default) is silent.
+  TleRepositoryImpl({
     required CelestrakDataSource dataSource,
     required CacheStore cacheStore,
     Clock clock = const SystemClock(),
     bool useIsolate = false,
+    OmmParseObserver? observer,
   })  : _dataSource = dataSource,
         _cacheStore = cacheStore,
         _clock = clock,
-        _useIsolate = useIsolate;
+        _useIsolate = useIsolate,
+        _observer = observer,
+        _ommParser = OmmParser(observer: observer);
 
   final CelestrakDataSource _dataSource;
   final CacheStore _cacheStore;
   final Clock _clock;
   final bool _useIsolate;
+  final OmmParseObserver? _observer;
 
-  static const _ommParser = OmmParser();
+  final OmmParser _ommParser;
   static const _stitcher = TleOmmStitcher();
   static const _tleParser = TleParser();
 
@@ -726,17 +733,18 @@ final class TleRepositoryImpl implements TleRepository {
     required String tleBody,
     required DateTime fetchedAt,
     required bool fromCache,
-  }) {
+  }) async {
     final args = _OmmParseArgs(
       ommBody: ommBody,
       tleBody: tleBody,
       fetchedAt: fetchedAt,
       fromCache: fromCache,
     );
-    if (_useIsolate) {
-      return runParse(() => _parseOmmInIsolate(args));
-    }
-    return Future.value(_parseOmmInIsolate(args));
+    final (records, defaults) = _useIsolate
+        ? await runParse(() => _parseOmmInIsolate(args))
+        : _parseOmmInIsolate(args);
+    if (defaults.isNotEmpty) _observer?.call(defaults);
+    return records;
   }
 
   /// Parses a multi-record TLE body into a list of [SatelliteTle].
@@ -1200,13 +1208,20 @@ final class _TleParseArgs {
 /// Must be a top-level function (not an instance method) so it can be
 /// passed to `Isolate.run` without capturing instance state.
 ///
-/// NOTE: `ParseBenchmarkHook` is intentionally not forwarded here.
-/// Closures over non-sendable objects (including custom hook implementations)
-/// cannot cross isolate boundaries. Any hook injected into `TleRepositoryImpl`
-/// is silently dropped on this isolate path. Only the default
-/// `NullParseBenchmarkHook` is used inside the worker isolate.
-List<SatelliteTle> _parseOmmInIsolate(_OmmParseArgs args) {
-  const ommParser = OmmParser();
+/// Returns the stitched records together with the OMM defaulted-field counts.
+/// The counts are accumulated as plain data inside the worker isolate (via a
+/// local capturing observer) and returned so the caller can replay them to the
+/// real [OmmParseObserver] on the main isolate; the consumer's observer never
+/// runs inside the worker isolate.
+///
+/// NOTE: `ParseBenchmarkHook` is intentionally not forwarded here. Closures
+/// over non-sendable objects (including custom hook implementations) cannot
+/// cross isolate boundaries. Any benchmark hook injected into
+/// `TleRepositoryImpl` is silently dropped on this isolate path; only the
+/// default `NullParseBenchmarkHook` is used inside the worker isolate.
+(List<SatelliteTle>, Map<String, int>) _parseOmmInIsolate(_OmmParseArgs args) {
+  var defaults = const <String, int>{};
+  final ommParser = OmmParser(observer: (counts) => defaults = counts);
   const stitcher = TleOmmStitcher();
 
   final jsonList =
@@ -1223,7 +1238,7 @@ List<SatelliteTle> _parseOmmInIsolate(_OmmParseArgs args) {
       args.fromCache ? tle.copyWith(source: TleSource.local) : tle,
     );
   }
-  return results;
+  return (results, defaults);
 }
 
 /// Parses a multi-record TLE body; isolate-safe.

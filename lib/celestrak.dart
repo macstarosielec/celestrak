@@ -65,6 +65,9 @@
 ///   configurable [defaultStaleThreshold].
 /// - [ParseBenchmarkHook] / [NullParseBenchmarkHook] - extension point for
 ///   measuring parse duration in large category responses.
+/// - [OmmParseObserver] - callback notified once per parse operation when
+///   CelesTrak OMM metadata fields are absent and defaulted; `null` (the
+///   default) is silent.
 ///
 /// ## Configuration constants
 ///
@@ -86,6 +89,7 @@ import 'package:celestrak/src/client/spacetrack_client.dart';
 import 'package:celestrak/src/client/spacetrack_query.dart';
 import 'package:celestrak/src/data/local/cache_store.dart';
 import 'package:celestrak/src/data/local/memory_cache_store.dart';
+import 'package:celestrak/src/data/parsers/omm_parse_observer.dart';
 import 'package:celestrak/src/data/parsers/omm_parser.dart';
 import 'package:celestrak/src/data/parsers/parse_benchmark_hook.dart';
 import 'package:celestrak/src/data/parsers/satcat_parser.dart';
@@ -109,6 +113,7 @@ export 'src/client/spacetrack_client.dart';
 export 'src/client/spacetrack_query.dart';
 export 'src/data/local/cache_store.dart';
 export 'src/data/local/memory_cache_store.dart';
+export 'src/data/parsers/omm_parse_observer.dart';
 export 'src/data/parsers/omm_parser.dart';
 export 'src/data/parsers/parse_benchmark_hook.dart';
 export 'src/data/parsers/satcat_parser.dart';
