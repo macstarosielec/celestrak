@@ -21,6 +21,7 @@ library;
 import 'package:celestrak/src/data/local/cache_store.dart';
 import 'package:celestrak/src/data/local/default_cache_store_stub.dart'
     if (dart.library.io) 'package:celestrak/src/data/local/default_cache_store_io.dart';
+import 'package:celestrak/src/data/parsers/omm_parse_observer.dart';
 import 'package:celestrak/src/data/remote/celestrak_data_source.dart';
 import 'package:celestrak/src/data/tle_repository_impl.dart';
 import 'package:celestrak/src/domain/clock.dart';
@@ -100,6 +101,7 @@ final class CelestrakClient {
     Duration staleThreshold = defaultStaleThreshold,
     Clock clock = const SystemClock(),
     bool useIsolate = false,
+    OmmParseObserver? observer,
   }) : this._init(
           httpClient: http.Client(),
           cacheStore: defaultCacheStore(cacheDir),
@@ -111,6 +113,7 @@ final class CelestrakClient {
           clock: clock,
           ownsClient: true,
           useIsolate: useIsolate,
+          observer: observer,
         );
 
   /// Private initialising constructor. Ownership tracking is expressed only
@@ -126,6 +129,7 @@ final class CelestrakClient {
     required Clock clock,
     required bool ownsClient,
     required bool useIsolate,
+    required OmmParseObserver? observer,
   })  : _defaultTtl = defaultTtl,
         _defaultFormat = defaultFormat,
         _timeout = timeout,
@@ -147,6 +151,7 @@ final class CelestrakClient {
           cacheStore: cacheStore,
           clock: clock,
           useIsolate: useIsolate,
+          observer: observer,
         );
 
   /// Creates a [CelestrakClient] with a caller-supplied [CacheStore] and
@@ -171,6 +176,7 @@ final class CelestrakClient {
     Duration staleThreshold = defaultStaleThreshold,
     Clock clock = const SystemClock(),
     bool useIsolate = false,
+    OmmParseObserver? observer,
   }) : this._init(
           httpClient: httpClient,
           cacheStore: cacheStore,
@@ -182,6 +188,7 @@ final class CelestrakClient {
           clock: clock,
           ownsClient: false,
           useIsolate: useIsolate,
+          observer: observer,
         );
 
   /// Validates [maxAttempts] and returns it unchanged, or throws

@@ -7,8 +7,9 @@
 ///
 /// Symbols confirmed public (one assignment proves the name resolves):
 ///   CelestrakClient, SatcatClient, SpaceTrackClient, SpaceTrackQuery,
-///   CacheStore, MemoryCacheStore, OmmParser, ParseBenchmarkHook,
-///   NullParseBenchmarkHook, Clock, SystemClock, kDefaultTtl,
+///   CacheStore, MemoryCacheStore, OmmParser, OmmParseObserver,
+///   ParseBenchmarkHook, NullParseBenchmarkHook, Clock, SystemClock,
+///   kDefaultTtl,
 ///   kSatcatDefaultTtl, kSatcatStaleThreshold,
 ///   kDefaultMaxAttempts, kDefaultTimeout, SatelliteCategory, TleSource,
 ///   CelestrakFormat, CelestrakException, AuthenticationException,
@@ -67,6 +68,12 @@ void main() {
     test('OmmParser is accessible', () {
       const parser = OmmParser();
       expect(parser, isNotNull);
+    });
+
+    test('OmmParseObserver is accessible as a type', () {
+      // Function typedef; verify the name resolves as a type annotation.
+      OmmParseObserver? observer;
+      expect(observer, isNull);
     });
 
     test('NullParseBenchmarkHook is accessible', () {
