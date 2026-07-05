@@ -22,3 +22,5 @@ than deleted.
 | [0011](0011-license-mit.md) | License: MIT | Accepted |
 | [0012](0012-error-strategy.md) | Exceptions-first; non-throwing `Result` variant deferred | Accepted |
 | [0013](0013-min-dart-sdk.md) | Minimum Dart SDK = `>=3.4.0 <4.0.0` | Accepted |
+| [0014](0014-omm-parse-observer.md) | Silent-by-default OMM parse defaults, observed via a callback | Accepted |
+| [0015](0015-network-failure-taxonomy.md) | Network failure taxonomy: a `kind` field on `NetworkException` | Accepted |

@@ -13,8 +13,9 @@
 ///   kSatcatDefaultTtl, kSatcatStaleThreshold,
 ///   kDefaultMaxAttempts, kDefaultTimeout, SatelliteCategory, TleSource,
 ///   CelestrakFormat, CelestrakException, AuthenticationException,
-///   CacheMissException, NetworkException, OmmParseException,
-///   RateLimitException, SatelliteNotFoundException, TleParseException,
+///   CacheMissException, NetworkException, NetworkFailureKind,
+///   OmmParseException, RateLimitException, SatelliteNotFoundException,
+///   TleParseException,
 ///   TleRepository, Omm, SatelliteTle, StalenessChecker,
 ///   defaultStaleThreshold, SatcatOwner, satcatOwnerForCode, SatcatEntry,
 ///   SatcatObjectType, SatcatParser, SatcatParseException, SatcatRepository.
@@ -128,9 +129,17 @@ void main() {
       expect(CelestrakFormat.tle, isNotNull);
     });
 
+    test('NetworkFailureKind enum is accessible', () {
+      expect(NetworkFailureKind.httpRejected, isNotNull);
+      expect(NetworkFailureKind.timeout, isNotNull);
+      expect(NetworkFailureKind.network, isNotNull);
+      expect(NetworkFailureKind.unknown, isNotNull);
+    });
+
     test('CelestrakException hierarchy is accessible', () {
       const e1 = NetworkException('x');
       expect(e1, isA<CelestrakException>());
+      expect(e1.kind, NetworkFailureKind.unknown);
 
       const e2 = OmmParseException('x', field: 'EPOCH');
       expect(e2.field, 'EPOCH');

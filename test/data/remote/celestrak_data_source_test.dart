@@ -336,6 +336,8 @@ void main() {
       );
 
       expect(ex.statusCode, equals(503));
+      // The transport's httpRejected classification propagates untouched.
+      expect(ex.kind, equals(NetworkFailureKind.httpRejected));
     });
 
     test('propagates NetworkException on SocketException', () async {

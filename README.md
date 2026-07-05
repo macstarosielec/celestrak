@@ -284,7 +284,25 @@ try {
   // e.statusCode - HTTP status if a response was received (or null).
   // e.uri - the URL that failed.
   // e.cause - underlying exception (SocketException, TimeoutException, …).
+  // e.kind - classification of the failure (NetworkFailureKind); see below.
   print('Network error ${e.statusCode}: ${e.message}');
+  switch (e.kind) {
+    case NetworkFailureKind.httpRejected:
+      // Status 403/429, or a 2xx response whose body was an HTML block
+      // page - a probable CelesTrak-side block.
+      break;
+    case NetworkFailureKind.timeout:
+      // No response within the deadline. A banned IP is usually
+      // blackholed and times out, but a slow network looks the same.
+      break;
+    case NetworkFailureKind.network:
+      // DNS or socket failure - no connectivity, not a block signal.
+      break;
+    case NetworkFailureKind.unknown:
+      // Not attributable to the above (e.g. a cache eviction race).
+      // Ignore this value when building block heuristics.
+      break;
+  }
 } on CacheMissException catch (e) {
   // forceCache: true was used but no cache entry exists.
   // e.key - the cache key that was looked up.
