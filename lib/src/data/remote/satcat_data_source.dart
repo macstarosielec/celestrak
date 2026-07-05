@@ -6,7 +6,7 @@
 /// all other transport failures propagate as [NetworkException] from
 /// [HttpTransport].
 ///
-/// SATCAT is a dataset distinct from GP/OMM (ADR-14), so this data source is a
+/// SATCAT is a dataset distinct from GP/OMM (ADR-0016), so this data source is a
 /// separate concern from the GP `CelestrakDataSource`: its own URLs, its own
 /// parser, and (from P9.5) its own cache namespace. It does not extend or reuse
 /// the GP data source.

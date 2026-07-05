@@ -24,3 +24,6 @@ than deleted.
 | [0013](0013-min-dart-sdk.md) | Minimum Dart SDK = `>=3.4.0 <4.0.0` | Accepted |
 | [0014](0014-omm-parse-observer.md) | Silent-by-default OMM parse defaults, observed via a callback | Accepted |
 | [0015](0015-network-failure-taxonomy.md) | Network failure taxonomy: a `kind` field on `NetworkException` | Accepted |
+| [0016](0016-satcat-separate-concern.md) | SATCAT as a separate concern | Accepted |
+| [0017](0017-bundled-owner-mapping.md) | Bundled, offline SATCAT owner-code mapping | Accepted |
+| [0018](0018-parse-benchmark.md) | Starlink OMM parse benchmark: isolate opt-in decision | Accepted |

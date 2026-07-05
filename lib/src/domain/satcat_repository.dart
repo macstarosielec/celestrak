@@ -2,7 +2,7 @@
 ///
 /// Implementations orchestrate cache look-up, TTL expiry, remote fetch, and
 /// parsing into [SatcatEntry] values. SATCAT is a concern distinct from the
-/// orbital GP/OMM data (ADR-14), so this interface is separate from
+/// orbital GP/OMM data (ADR-0016), so this interface is separate from
 /// `TleRepository`: a SATCAT-specific type with its own methods and its own
 /// cache namespace.
 library;

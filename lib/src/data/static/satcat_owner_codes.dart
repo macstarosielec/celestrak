@@ -25,7 +25,7 @@
 /// China"; `Morocco`, not the site's "Morroco" typo).
 ///
 /// See also:
-/// - [ADR-0015: bundled owner mapping](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0015-bundled-owner-mapping.md)
+/// - [ADR-0017: bundled owner mapping](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0017-bundled-owner-mapping.md)
 library;
 
 import 'package:celestrak/src/domain/satcat_owner.dart';

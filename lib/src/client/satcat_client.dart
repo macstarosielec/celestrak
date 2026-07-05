@@ -1,7 +1,7 @@
 /// Public facade for fetching and caching CelesTrak SATCAT metadata.
 ///
 /// SATCAT (per-object owner, launch, decay, object type, status) is a concern
-/// distinct from the orbital GP/OMM data (ADR-14). This client is the SATCAT
+/// distinct from the orbital GP/OMM data (ADR-0016). This client is the SATCAT
 /// parallel to `CelestrakClient`: it wraps the same cache -> TTL -> fetch ->
 /// parse pipeline used for GP data, but keyed into its own SATCAT cache
 /// namespace, and adds an indexed `lookup` for repeated point queries against
