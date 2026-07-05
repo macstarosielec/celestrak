@@ -7,7 +7,7 @@
 ///
 /// See also:
 /// - [ADR-0010: hand-written models](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0010-hand-written-models.md)
-/// - [ADR-0014: SATCAT as a separate concern](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0014-satcat-separate-concern.md)
+/// - [ADR-0016: SATCAT as a separate concern](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0016-satcat-separate-concern.md)
 library;
 
 import 'package:celestrak/src/domain/satcat_owner.dart';

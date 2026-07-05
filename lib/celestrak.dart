@@ -25,7 +25,7 @@
 /// - [SatcatClient] - high-level SATCAT facade; covers `fetchByNoradId`,
 ///   `fetchCategory`, `fetchCategoryByGroup`, `fetchByIntlDesignator`,
 ///   `fetchAll`, an indexed `lookup`, per-key cache-age inspection, and
-///   `clearCache`. A concern separate from [CelestrakClient] (ADR-14); join
+///   `clearCache`. A concern separate from [CelestrakClient] (ADR-0016); join
 ///   the two datasets on `noradId`.
 /// - [SpaceTrackClient] - credentialed Space-Track.org facade.
 /// - [SpaceTrackQuery] - value object describing a Space-Track query.

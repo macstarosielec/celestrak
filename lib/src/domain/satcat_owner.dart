@@ -12,7 +12,7 @@
 /// `kSatcatOwnerCodes` for the table itself.
 ///
 /// See also:
-/// - [ADR-0015: bundled owner mapping](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0015-bundled-owner-mapping.md)
+/// - [ADR-0017: bundled owner mapping](https://github.com/macstarosielec/celestrak/blob/main/doc/adr/0017-bundled-owner-mapping.md)
 library;
 
 import 'package:celestrak/src/data/static/satcat_owner_codes.dart';
