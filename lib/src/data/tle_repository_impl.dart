@@ -477,9 +477,11 @@ final class TleRepositoryImpl implements TleRepository {
     // Cache entry evicted between age() and read() — throw rather than
     // silently making a new network call that would hide the original error.
     if (bytes == null) {
+      // Eviction race, not a network-layer failure.
       throw NetworkException(
         'Cache entry for NORAD ID $noradId evicted before it could be read; '
         'no stale fallback available.',
+        kind: NetworkFailureKind.unknown,
       );
     }
 
@@ -619,9 +621,11 @@ final class TleRepositoryImpl implements TleRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
+      // Eviction race, not a network-layer failure.
       throw NetworkException(
         'Cache entry for category ${category.group} evicted before it could '
         'be read; no stale fallback available.',
+        kind: NetworkFailureKind.unknown,
       );
     }
     final body = utf8.decode(bytes);
@@ -794,9 +798,11 @@ final class TleRepositoryImpl implements TleRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
+      // Eviction race, not a network-layer failure.
       throw NetworkException(
         'Cache entry for group "$group" evicted before it could be read; '
         'no stale fallback available.',
+        kind: NetworkFailureKind.unknown,
       );
     }
     final body = utf8.decode(bytes);
@@ -905,9 +911,11 @@ final class TleRepositoryImpl implements TleRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
+      // Eviction race, not a network-layer failure.
       throw NetworkException(
         'Cache entry for name "$name" evicted before it could be read; '
         'no stale fallback available.',
+        kind: NetworkFailureKind.unknown,
       );
     }
     final body = utf8.decode(bytes);
@@ -1021,9 +1029,11 @@ final class TleRepositoryImpl implements TleRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
+      // Eviction race, not a network-layer failure.
       throw NetworkException(
         'Cache entry for international designator "$intlDesignator" evicted '
         'before it could be read; no stale fallback available.',
+        kind: NetworkFailureKind.unknown,
       );
     }
     final body = utf8.decode(bytes);

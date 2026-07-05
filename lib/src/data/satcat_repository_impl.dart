@@ -17,6 +17,7 @@ import 'package:celestrak/src/domain/failures.dart'
     show
         CacheMissException,
         NetworkException,
+        NetworkFailureKind,
         SatcatParseException,
         SatelliteNotFoundException;
 import 'package:celestrak/src/domain/satcat_entry.dart';
@@ -299,9 +300,11 @@ final class SatcatRepositoryImpl implements SatcatRepository {
   Future<SatcatEntry> _readSingleFromCache(int noradId, String key) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
+      // Eviction race, not a network-layer failure.
       throw NetworkException(
         'SATCAT cache entry for NORAD ID $noradId evicted before it could be '
         'read; no stale fallback available.',
+        kind: NetworkFailureKind.unknown,
       );
     }
     final decoded = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
@@ -341,9 +344,11 @@ final class SatcatRepositoryImpl implements SatcatRepository {
   ) async {
     final bytes = await _cacheStore.read(key);
     if (bytes == null) {
+      // Eviction race, not a network-layer failure.
       throw NetworkException(
         'SATCAT cache entry for $label evicted before it could be read; no '
         'stale fallback available.',
+        kind: NetworkFailureKind.unknown,
       );
     }
 

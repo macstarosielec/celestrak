@@ -67,6 +67,27 @@ final class SatcatParseException extends CelestrakException {
       : 'SatcatParseException($field): $message';
 }
 
+/// How a [NetworkException] failure is classified. See ADR-0015.
+enum NetworkFailureKind {
+  /// The server answered with a rejecting status (4xx/5xx after retry
+  /// policy) or an HTML block page instead of a payload. Raw status is in
+  /// [NetworkException.statusCode]. 403/429 here is a strong block signal.
+  httpRejected,
+
+  /// The request was sent but no response arrived within the per-attempt
+  /// deadline. A CelesTrak IP ban usually presents as this.
+  timeout,
+
+  /// DNS or socket-level failure — the request never got a server response
+  /// channel (no connectivity, host unreachable).
+  network,
+
+  /// Not attributable to the three classes above (e.g. an internal cache
+  /// eviction race surfaced as [NetworkException]). Consumers building block
+  /// heuristics should ignore this value.
+  unknown,
+}
+
 /// Thrown when an HTTP request fails after all retry attempts are exhausted,
 /// or immediately on a non-retryable error (e.g. a 4xx response).
 ///
@@ -74,6 +95,7 @@ final class SatcatParseException extends CelestrakException {
 /// [uri] is the target URI of the failing request.
 /// [cause] is the underlying exception that triggered the failure, when
 /// available (e.g. a [TimeoutException] or a socket/IO exception).
+/// [kind] classifies the failure; see [NetworkFailureKind].
 final class NetworkException extends CelestrakException {
   /// Creates a [NetworkException] describing [message].
   const NetworkException(
@@ -81,6 +103,7 @@ final class NetworkException extends CelestrakException {
     this.statusCode,
     this.uri,
     this.cause,
+    this.kind = NetworkFailureKind.unknown,
   });
 
   /// The HTTP status code of the last response, if one was received.
@@ -92,12 +115,18 @@ final class NetworkException extends CelestrakException {
   /// The underlying exception that caused the failure, if available.
   final Object? cause;
 
+  /// The classification of this failure. Defaults to
+  /// [NetworkFailureKind.unknown] for call sites that do not attribute a
+  /// specific cause (e.g. cache eviction races).
+  final NetworkFailureKind kind;
+
   @override
   String toString() {
     final parts = <String>['NetworkException: $message'];
     if (statusCode != null) parts.add('statusCode=$statusCode');
     if (uri != null) parts.add('uri=$uri');
     if (cause != null) parts.add('cause=${cause.runtimeType}');
+    parts.add('kind=${kind.name}');
     return parts.join(', ');
   }
 }

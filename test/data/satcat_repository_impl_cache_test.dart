@@ -48,12 +48,46 @@ class _CountingHandler {
   }
 }
 
+/// A [CacheStore] that delegates to a [MemoryCacheStore] but can be
+/// configured to drop reads for a named key once (simulating a concurrent
+/// eviction race between the age() check and the subsequent read()).
+final class _EvictingCacheStore implements CacheStore {
+  _EvictingCacheStore() : _inner = MemoryCacheStore();
+
+  final MemoryCacheStore _inner;
+
+  /// Keys whose next [read] call returns null regardless of stored content.
+  final _evictOnRead = <String>{};
+
+  void evictOnNextRead(String key) => _evictOnRead.add(key);
+
+  @override
+  Future<Uint8List?> read(String key) async {
+    if (_evictOnRead.remove(key)) return null;
+    return _inner.read(key);
+  }
+
+  @override
+  Future<void> write(
+    String key,
+    Uint8List bytes,
+    DateTime writtenAt,
+  ) =>
+      _inner.write(key, bytes, writtenAt);
+
+  @override
+  Future<Duration?> age(String key, DateTime now) => _inner.age(key, now);
+
+  @override
+  Future<void> clear({String? keyPrefix}) => _inner.clear(keyPrefix: keyPrefix);
+}
+
 /// Creates a [SatcatRepositoryImpl] wired to a [MockClient] data source over
-/// [handler], a [FakeClock], and a [MemoryCacheStore].
+/// [handler], a [FakeClock], and a [CacheStore] (usually a [MemoryCacheStore]).
 SatcatRepositoryImpl _repo(
   _CountingHandler handler, {
   required FakeClock clock,
-  required MemoryCacheStore store,
+  required CacheStore store,
   int maxAttempts = 1,
 }) =>
     SatcatRepositoryImpl(
@@ -348,6 +382,61 @@ void main() {
       await expectLater(
         repo.fetchByGroup('stations', allowStale: true),
         throwsA(isA<NetworkException>()),
+      );
+    });
+  });
+
+  // Cache eviction races (bytes == null on read after age() check)
+  group('SatcatRepositoryImpl - cache entry evicted between age() and read()',
+      () {
+    test('fetchByNoradId: throws NetworkException with kind unknown', () async {
+      final clock = newClock();
+      final store = _EvictingCacheStore();
+      final handler =
+          _CountingHandler((_) => http.Response(_issSatcatObject, 200));
+      final repo = _repo(handler, clock: clock, store: store);
+
+      await repo.fetchByNoradId(25544);
+
+      final key = CacheKeyBuilder.forSatcatNoradId(25544);
+      store.evictOnNextRead(key);
+      clock.advance(const Duration(minutes: 30));
+
+      await expectLater(
+        repo.fetchByNoradId(25544),
+        throwsA(
+          isA<NetworkException>().having(
+            (e) => e.kind,
+            'kind',
+            equals(NetworkFailureKind.unknown),
+          ),
+        ),
+      );
+    });
+
+    test('fetchByGroup (bulk): throws NetworkException with kind unknown',
+        () async {
+      final clock = newClock();
+      final store = _EvictingCacheStore();
+      final handler =
+          _CountingHandler((_) => http.Response(_groupStations, 200));
+      final repo = _repo(handler, clock: clock, store: store);
+
+      await repo.fetchByGroup('stations');
+
+      final key = CacheKeyBuilder.forSatcatGroup('stations');
+      store.evictOnNextRead(key);
+      clock.advance(const Duration(minutes: 30));
+
+      await expectLater(
+        repo.fetchByGroup('stations'),
+        throwsA(
+          isA<NetworkException>().having(
+            (e) => e.kind,
+            'kind',
+            equals(NetworkFailureKind.unknown),
+          ),
+        ),
       );
     });
   });

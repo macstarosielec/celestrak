@@ -16,3 +16,5 @@ pubspec.lock
 
 # npm artefacts (not relevant to a Dart package)
 package-lock.json
+
+CLAUDE.md

@@ -383,4 +383,200 @@ void main() {
       expect(callCount, equals(1));
     });
   });
+
+  group('HttpTransport — NetworkFailureKind classification', () {
+    test('kind is httpRejected on immediate 4xx', () async {
+      final transport = _transport(
+        (_) async => http.Response('bad request', 400),
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.httpRejected));
+    });
+
+    test('kind is httpRejected on 1xx/3xx unexpected status', () async {
+      final transport = _transport(
+        (_) async => http.Response('', 301),
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.httpRejected));
+    });
+
+    test('kind is httpRejected after 5xx retries exhausted', () async {
+      final transport = _transport(
+        (_) async => http.Response('server error', 503),
+        maxAttempts: 3,
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.httpRejected));
+    });
+
+    test('kind is timeout after TimeoutException retries exhausted', () async {
+      final transport = _transport(
+        (_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          return http.Response('late', 200);
+        },
+        maxAttempts: 2,
+        timeout: const Duration(milliseconds: 50),
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.timeout));
+    });
+
+    test('kind is network after ClientException retries exhausted', () async {
+      final transport = _transport(
+        (_) async => throw http.ClientException('connection refused'),
+        maxAttempts: 2,
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.network));
+    });
+
+    test('kind is network after SocketException retries exhausted', () async {
+      final transport = _transport(
+        (_) async => throw const SocketException('network unreachable'),
+        maxAttempts: 2,
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.network));
+    });
+
+    test('mixed-cause retry sequence classifies by the LAST attempt error',
+        () async {
+      var callCount = 0;
+      final transport = _transport(
+        (_) async {
+          callCount++;
+          // First attempt: 503. Second attempt: TimeoutException. Third
+          // attempt (last): SocketException — kind must reflect this one.
+          if (callCount == 1) return http.Response('error', 503);
+          if (callCount == 2) {
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+            return http.Response('late', 200);
+          }
+          throw const SocketException('unreachable');
+        },
+        maxAttempts: 3,
+        timeout: const Duration(milliseconds: 50),
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.network));
+      expect(exception.cause, isA<SocketException>());
+      expect(callCount, equals(3));
+    });
+  });
+
+  group('HttpTransport — HTML block-page sniff', () {
+    test('200 body starting with <!DOCTYPE html> is rejected', () async {
+      final transport = _transport(
+        (_) async => http.Response('<!DOCTYPE html><html></html>', 200),
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.httpRejected));
+      expect(exception.statusCode, equals(200));
+    });
+
+    test('200 body starting with <html> is rejected', () async {
+      final transport = _transport(
+        (_) async => http.Response('<html><body>blocked</body></html>', 200),
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.httpRejected));
+    });
+
+    test('sniff is case-insensitive', () async {
+      final transport = _transport(
+        (_) async => http.Response('<!DocType HTML><HTML></HTML>', 200),
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.httpRejected));
+    });
+
+    test('sniff tolerates leading whitespace before <!DOCTYPE', () async {
+      final transport = _transport(
+        (_) async => http.Response('\n\n  <!DOCTYPE html><html></html>', 200),
+      );
+
+      final exception = await _catchNetwork(() => transport.get(_httpsUri));
+
+      expect(exception.kind, equals(NetworkFailureKind.httpRejected));
+    });
+
+    test('sniff does not retry — only one transport call', () async {
+      var callCount = 0;
+      final transport = _transport(
+        (_) async {
+          callCount++;
+          return http.Response('<html>block page</html>', 200);
+        },
+        maxAttempts: 3,
+      );
+
+      await expectLater(
+        transport.get(_httpsUri),
+        throwsA(isA<NetworkException>()),
+      );
+      expect(callCount, equals(1));
+    });
+
+    test('JSON array body is not sniffed as HTML', () async {
+      final transport = _transport(
+        (_) async => http.Response('[{"OBJECT_NAME": "ISS"}]', 200),
+      );
+
+      final result = await transport.get(_httpsUri);
+      expect(result, equals('[{"OBJECT_NAME": "ISS"}]'));
+    });
+
+    test('CSV header line is not sniffed as HTML', () async {
+      const csv = 'OBJECT_NAME,OBJECT_ID,NORAD_CAT_ID\nISS,1998-067A,25544';
+      final transport = _transport(
+        (_) async => http.Response(csv, 200),
+      );
+
+      final result = await transport.get(_httpsUri);
+      expect(result, equals(csv));
+    });
+
+    test('a raw TLE line is not sniffed as HTML', () async {
+      const tle = '1 25544U 98067A   24001.00000000  .00000000  '
+          '00000-0  00000-0 0  9990';
+      final transport = _transport(
+        (_) async => http.Response(tle, 200),
+      );
+
+      final result = await transport.get(_httpsUri);
+      expect(result, equals(tle));
+    });
+
+    test('an XML body starting with <?xml is not sniffed as HTML', () async {
+      const xml = '<?xml version="1.0"?><ndm></ndm>';
+      final transport = _transport(
+        (_) async => http.Response(xml, 200),
+      );
+
+      final result = await transport.get(_httpsUri);
+      expect(result, equals(xml));
+    });
+  });
 }

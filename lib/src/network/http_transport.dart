@@ -41,6 +41,15 @@ const Duration kBackoffMax = Duration(seconds: 10);
 /// Inject a custom [http.Client] for testing; the transport does **not** own
 /// the client and will never close it.
 ///
+/// Every [NetworkException] thrown here carries a [NetworkFailureKind]: 4xx,
+/// 1xx/3xx, and exhausted 5xx all classify as [NetworkFailureKind.httpRejected];
+/// exhausted [TimeoutException] classifies as [NetworkFailureKind.timeout];
+/// exhausted [http.ClientException] or a socket exception classifies as
+/// [NetworkFailureKind.network]. For a mixed-cause retry sequence (e.g. 503,
+/// then timeout, then socket error) the kind reflects the LAST attempt's
+/// error — the same attempt that [NetworkException.cause] already carries, so
+/// the two stay consistent.
+///
 /// See also:
 /// - [NetworkException] — thrown when all retry attempts are exhausted.
 final class HttpTransport {
@@ -66,7 +75,9 @@ final class HttpTransport {
   ///
   /// Throws [ArgumentError] if [uri] does not use the `https` scheme.
   /// Throws [NetworkException] if all retry attempts are exhausted without a
-  /// successful (2xx) response.
+  /// successful (2xx) response. Also throws [NetworkException] immediately,
+  /// without retrying, when a 2xx body sniffs as an HTML block page (see
+  /// [_looksLikeHtmlBlockPage]).
   Future<String> get(Uri uri) async {
     if (uri.scheme != 'https') {
       throw ArgumentError.value(
@@ -87,6 +98,15 @@ final class HttpTransport {
         final response = await _client.get(uri).timeout(_timeout);
 
         if (response.statusCode >= 200 && response.statusCode < 300) {
+          if (_looksLikeHtmlBlockPage(response.body)) {
+            throw NetworkException(
+              'HTTP ${response.statusCode} from $uri returned an HTML body '
+              'instead of a payload (likely a block page)',
+              statusCode: response.statusCode,
+              uri: uri,
+              kind: NetworkFailureKind.httpRejected,
+            );
+          }
           return response.body;
         }
 
@@ -95,6 +115,7 @@ final class HttpTransport {
             'HTTP ${response.statusCode} from $uri (4xx — not retried)',
             statusCode: response.statusCode,
             uri: uri,
+            kind: NetworkFailureKind.httpRejected,
           );
         }
 
@@ -104,6 +125,7 @@ final class HttpTransport {
             'HTTP ${response.statusCode} from $uri',
             statusCode: response.statusCode,
             uri: uri,
+            kind: NetworkFailureKind.httpRejected,
           );
         } else {
           // 1xx / 3xx — unexpected; treat as non-retryable.
@@ -111,6 +133,7 @@ final class HttpTransport {
             'Unexpected HTTP ${response.statusCode} from $uri',
             statusCode: response.statusCode,
             uri: uri,
+            kind: NetworkFailureKind.httpRejected,
           );
         }
       } on NetworkException {
@@ -136,6 +159,7 @@ final class HttpTransport {
         statusCode: cause.statusCode,
         uri: uri,
         cause: cause,
+        kind: NetworkFailureKind.httpRejected,
       );
     }
 
@@ -143,7 +167,24 @@ final class HttpTransport {
       'All $_maxAttempts attempts failed for $uri: $lastError',
       uri: uri,
       cause: lastError,
+      kind: cause is TimeoutException
+          ? NetworkFailureKind.timeout
+          : NetworkFailureKind.network,
     );
+  }
+
+  /// Returns `true` when [body], after leading whitespace, starts with
+  /// `<!DOCTYPE` or `<html` (case-insensitive) — CelesTrak block pages arrive
+  /// this way instead of a payload. No current endpoint (GP JSON/CSV/TLE/XML,
+  /// SATCAT JSON/CSV, SpaceTrack JSON) legally starts with either token; XML
+  /// payloads start with `<?xml`, so this two-token check cannot false-positive
+  /// on them. Do not widen this to a bare `<`.
+  static bool _looksLikeHtmlBlockPage(String body) {
+    final trimmed = body.trimLeft();
+    final lower = trimmed.length > 15
+        ? trimmed.substring(0, 15).toLowerCase()
+        : trimmed.toLowerCase();
+    return lower.startsWith('<!doctype') || lower.startsWith('<html');
   }
 
   /// Computes the backoff delay for [retryNumber] (1-based retry index).
