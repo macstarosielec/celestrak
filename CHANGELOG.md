@@ -4,6 +4,22 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-07-05
+
+### Added
+
+- `NetworkFailureKind` enum and a `NetworkException.kind` field, classifying
+  every network failure as `httpRejected`, `timeout`, `network`, or `unknown`
+  so callers can distinguish a probable CelesTrak-side block from a generic
+  outage. See [ADR-0015](doc/adr/0015-network-failure-taxonomy.md).
+
+### Changed
+
+- A 2xx response whose body is an HTML block page now throws
+  `NetworkException` (kind `httpRejected`) instead of surfacing later as a
+  parse error.
+- `NetworkException.toString()` gains a trailing `kind=` segment.
+
 ## [1.3.0] - 2026-06-20
 
 ### Added

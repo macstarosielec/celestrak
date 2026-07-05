@@ -564,7 +564,13 @@ void main() {
 
         await expectLater(
           repo.fetchCategory(SatelliteCategory.stations),
-          throwsA(isA<NetworkException>()),
+          throwsA(
+            isA<NetworkException>().having(
+              (e) => e.kind,
+              'kind',
+              equals(NetworkFailureKind.unknown),
+            ),
+          ),
         );
       });
 
@@ -590,7 +596,13 @@ void main() {
 
         await expectLater(
           repo.fetchCategoryByGroup('stations'),
-          throwsA(isA<NetworkException>()),
+          throwsA(
+            isA<NetworkException>().having(
+              (e) => e.kind,
+              'kind',
+              equals(NetworkFailureKind.unknown),
+            ),
+          ),
         );
       });
 
@@ -616,7 +628,13 @@ void main() {
 
         await expectLater(
           repo.fetchByName('ISS'),
-          throwsA(isA<NetworkException>()),
+          throwsA(
+            isA<NetworkException>().having(
+              (e) => e.kind,
+              'kind',
+              equals(NetworkFailureKind.unknown),
+            ),
+          ),
         );
       });
 
@@ -642,7 +660,13 @@ void main() {
 
         await expectLater(
           repo.fetchByIntlDesignator('1998-067A'),
-          throwsA(isA<NetworkException>()),
+          throwsA(
+            isA<NetworkException>().having(
+              (e) => e.kind,
+              'kind',
+              equals(NetworkFailureKind.unknown),
+            ),
+          ),
         );
       });
 
@@ -668,7 +692,13 @@ void main() {
 
         await expectLater(
           repo.fetchByNoradId(25544, format: CelestrakFormat.tle),
-          throwsA(isA<NetworkException>()),
+          throwsA(
+            isA<NetworkException>().having(
+              (e) => e.kind,
+              'kind',
+              equals(NetworkFailureKind.unknown),
+            ),
+          ),
         );
       });
     },

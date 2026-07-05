@@ -51,6 +51,8 @@
 ///   [RateLimitException], [SatcatParseException],
 ///   [SatelliteNotFoundException], [TleParseException]) - typed error
 ///   hierarchy; no raw `http` or `dart:io` exception escapes the public API.
+///   [NetworkFailureKind] classifies `NetworkException.kind` as
+///   `httpRejected`, `timeout`, `network`, or `unknown`; see ADR-0015.
 /// - [TleRepository] - abstract repository interface; implement to provide
 ///   a custom cache/fetch/parse pipeline.
 /// - [SatcatRepository] - abstract repository interface for SATCAT metadata;
