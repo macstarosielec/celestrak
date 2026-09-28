@@ -45,9 +45,15 @@ final class SatelliteTle {
   final String name;
 
   /// Verbatim TLE Line 1. 69 characters, checksum-valid.
+  ///
+  /// Empty when CelesTrak serves no TLE record for the object (NORAD IDs
+  /// >= 100 000 are only published as OMM); the elements are then available
+  /// via [omm].
   final String line1;
 
   /// Verbatim TLE Line 2. 69 characters, checksum-valid.
+  ///
+  /// Empty whenever [line1] is empty.
   final String line2;
 
   /// UTC epoch of the orbital elements.

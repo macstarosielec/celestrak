@@ -1,0 +1,15 @@
+# Test runner configuration.
+#
+# The `integration` tag marks LIVE, network-dependent tests (real CelesTrak,
+# SATCAT and Space-Track calls).
+#
+# Declaring the tag here registers it (so `--tags integration` is not an
+# "undeclared tag" warning) and marks it `skip` by default, so a bare
+# `dart test` run is offline and network-free. The CI / offline suite needs
+# no extra flags.
+#
+# Run the live suite explicitly with:
+#   dart test --tags integration --run-skipped
+tags:
+  integration:
+    skip: 'live network test - run with: dart test --tags integration --run-skipped'

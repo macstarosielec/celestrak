@@ -1,8 +1,8 @@
 /// Live integration tests — hit the real Space-Track.org API.
 ///
-/// These tests are excluded from the default `dart test` run.
-/// Run explicitly with:
-///   dart test --tags integration
+/// These tests are skipped in the default `dart test` run (see
+/// `dart_test.yaml`). Run explicitly with:
+///   dart test --tags integration --run-skipped
 ///
 /// They require:
 ///   - An active internet connection reachable to www.space-track.org.
@@ -60,6 +60,20 @@ SpaceTrackClient? _liveClient() {
   );
 }
 
+/// Returns a live [SpaceTrackClient], or marks the current test as skipped
+/// and returns `null` when credentials are absent.
+///
+/// The group-level `skip:` below is overridden by `--run-skipped` (the
+/// documented way to run the live suite), so credential gating must also
+/// happen at runtime inside each test body.
+SpaceTrackClient? _liveClientOrSkip() {
+  final client = _liveClient();
+  if (client == null) {
+    markTestSkipped('SPACE_TRACK_USER / SPACE_TRACK_PASS not set');
+  }
+  return client;
+}
+
 /// Asserts the core invariants that every Space-Track [SatelliteTle] must
 /// satisfy.
 void _assertValidRecord(SatelliteTle s) {
@@ -104,7 +118,8 @@ void main() {
       test(
         'isEnabled returns true when SPACE_TRACK_USER/PASS are set',
         () {
-          final client = _liveClient()!;
+          final client = _liveClientOrSkip();
+          if (client == null) return;
           try {
             expect(client.isEnabled, isTrue);
           } finally {
@@ -119,7 +134,8 @@ void main() {
       test(
         'fetchByQuery returns ISS (NORAD 25544) with valid TLE lines',
         () async {
-          final client = _liveClient()!;
+          final client = _liveClientOrSkip();
+          if (client == null) return;
           try {
             final iss = await client.fetchByQuery(
               SpaceTrackQuery.byNoradId(_issNoradId),
@@ -141,7 +157,8 @@ void main() {
       test(
         'fetchByQuery stamps source as TleSource.spacetrack',
         () async {
-          final client = _liveClient()!;
+          final client = _liveClientOrSkip();
+          if (client == null) return;
           try {
             final iss = await client.fetchByQuery(
               SpaceTrackQuery.byNoradId(_issNoradId),
@@ -158,7 +175,8 @@ void main() {
       test(
         'fetchByQuery result includes a populated Omm with correct noradId',
         () async {
-          final client = _liveClient()!;
+          final client = _liveClientOrSkip();
+          if (client == null) return;
           try {
             final iss = await client.fetchByQuery(
               SpaceTrackQuery.byNoradId(_issNoradId),
@@ -181,7 +199,8 @@ void main() {
       test(
         'fetchByQuery ISS epoch is a recent UTC timestamp',
         () async {
-          final client = _liveClient()!;
+          final client = _liveClientOrSkip();
+          if (client == null) return;
           try {
             final iss = await client.fetchByQuery(
               SpaceTrackQuery.byNoradId(_issNoradId),
@@ -208,7 +227,8 @@ void main() {
       test(
         'fetchByQuery throws SatelliteNotFoundException for unknown NORAD ID',
         () async {
-          final client = _liveClient()!;
+          final client = _liveClientOrSkip();
+          if (client == null) return;
           try {
             await expectLater(
               () => client.fetchByQuery(
@@ -254,7 +274,8 @@ void main() {
       test(
         'fetchSatcatByQuery returns ISS (NORAD 25544) SATCAT metadata',
         () async {
-          final client = _liveClient()!;
+          final client = _liveClientOrSkip();
+          if (client == null) return;
           try {
             final entry = await client.fetchSatcatByQuery(
               SpaceTrackQuery.byNoradId(_issNoradId),

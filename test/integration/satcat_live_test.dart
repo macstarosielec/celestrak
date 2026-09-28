@@ -1,8 +1,8 @@
 /// Live integration tests - hit the real CelesTrak SATCAT API.
 ///
-/// These tests are excluded from the default `dart test` run.
-/// Run explicitly with:
-///   dart test --tags integration
+/// These tests are skipped in the default `dart test` run (see
+/// `dart_test.yaml`). Run explicitly with:
+///   dart test --tags integration --run-skipped
 ///
 /// They require an active internet connection and a reachable celestrak.org.
 /// CelesTrak may be unreachable; these tests are skipped offline and are not
