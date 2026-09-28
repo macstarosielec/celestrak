@@ -63,6 +63,13 @@ Future<void> main() async {
 }
 ```
 
+Objects with NORAD IDs of 100 000 and above (in the catalog since September
+2026, e.g. SOYUZ-MS 29 / 100057) are published by CelesTrak only as OMM; the
+`FORMAT=TLE` endpoint returns 404 for them. For these `line1` and `line2` are
+empty strings and the elements are available in `tle.omm`. Check
+`tle.line1.isEmpty` before handing the lines to a TLE-only propagator, and
+prefer an OMM/mean-elements entry point when your propagator offers one.
+
 ### 3. Fetch a whole category
 
 ```dart

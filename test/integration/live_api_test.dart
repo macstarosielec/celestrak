@@ -1,8 +1,8 @@
 /// Live integration tests — hit the real CelesTrak API.
 ///
-/// These tests are excluded from the default `dart test` run.
-/// Run explicitly with:
-///   dart test --tags integration
+/// These tests are skipped in the default `dart test` run (see
+/// `dart_test.yaml`). Run explicitly with:
+///   dart test --tags integration --run-skipped
 ///
 /// They require an active internet connection and a reachable celestrak.org.
 /// Each test uses a fresh [MemoryCacheStore] so there are no cross-test
@@ -29,10 +29,28 @@ CelestrakClient _liveClient() => CelestrakClient.withStore(
     );
 
 /// Asserts the core invariants that every [SatelliteTle] must satisfy.
+///
+/// CelesTrak serves no `FORMAT=TLE` record for NORAD IDs >= 100 000 (the
+/// classic TLE catalog field is five digits), so OMM-format fetches of such
+/// objects legitimately carry empty lines and rely on [SatelliteTle.omm].
+/// Every other record must carry two verbatim 69-char lines.
 void _assertValidRecord(SatelliteTle s) {
   expect(s.noradId, greaterThan(0), reason: 'noradId must be positive');
-  expect(s.line1, hasLength(69), reason: 'TLE line 1 must be 69 chars');
-  expect(s.line2, hasLength(69), reason: 'TLE line 2 must be 69 chars');
+  if (s.noradId >= 100000 && s.omm != null) {
+    expect(
+      s.line1.isEmpty || s.line1.length == 69,
+      isTrue,
+      reason: 'TLE line 1 must be empty or 69 chars for 6-digit IDs',
+    );
+    expect(
+      s.line2.length,
+      equals(s.line1.length),
+      reason: 'TLE lines must be both present or both absent',
+    );
+  } else {
+    expect(s.line1, hasLength(69), reason: 'TLE line 1 must be 69 chars');
+    expect(s.line2, hasLength(69), reason: 'TLE line 2 must be 69 chars');
+  }
   // Epoch should be within the last 30 days — older data indicates stale feed.
   final age = DateTime.now().toUtc().difference(s.epoch);
   expect(

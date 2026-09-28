@@ -4,6 +4,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-09-28
+
+### Changed
+
+- `SatelliteTle.line1` / `line2` docs and the README now state that both
+  lines are empty when CelesTrak publishes an object only as OMM. This is the
+  case for NORAD IDs >= 100 000, which are live in the catalog since
+  September 2026 (e.g. SOYUZ-MS 29 / 100057 in the `stations` group); the
+  `FORMAT=TLE` endpoint returns 404 for them. The behaviour itself is
+  unchanged: use `SatelliteTle.omm` for such objects.
+- Live integration tests are registered under the `integration` tag in
+  `dart_test.yaml` and skipped by default, so a bare `dart test` is offline.
+  Run them with `dart test --tags integration --run-skipped`. The live suite
+  accepts empty lines for 6-digit-ID objects, and the Space-Track suite
+  skips at runtime when credentials are absent instead of failing under
+  `--run-skipped`.
+- Generated dartdoc output (`doc/api/`) is excluded from the published
+  archive via `.pubignore`; 1.4.0 shipped it by accident (pub.dev renders
+  its own API docs).
+
 ## [1.4.0] - 2026-07-05
 
 ### Added
